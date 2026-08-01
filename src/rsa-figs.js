@@ -21,6 +21,19 @@ const RSAFigs = (function () {
 
   const NS = 'http://www.w3.org/2000/svg';
 
+  /* Localised string with an English fallback baked in, so this module still
+   * renders correctly if it is ever used without the i18n module loaded. */
+  const FALLBACK = {
+    'fig.desc.line': 'Line chart, {0} to {1}.',
+    'fig.desc.bar': 'Bar chart of {0} items, from {1} at {2} to {3} at {4}',
+    'fig.desc.fromTo': ' from {0} to {1}',
+    'fig.desc.noData': ': no data'
+  };
+  function L(key) {
+    if (typeof RSAi18n !== 'undefined' && RSAi18n.has(key)) return RSAi18n.t(key);
+    return FALLBACK[key] || key;
+  }
+
   /* Sequential ramp, light to dark. The direction matters: readers take darker
    * to mean "more", so the ramp must run light at the low end. An earlier
    * version had this reversed, which made the least self-sufficient countries
@@ -235,13 +248,18 @@ const RSAFigs = (function () {
      * range and, where relevant, that some of it is a projection. */
     el('title', {}, s).textContent = (spec.title || 'Chart') +
       (spec.subtitle ? ' — ' + spec.subtitle : '');
+    /* Screen-reader description, localised like everything else. A French
+     * reader using a screen reader is precisely the person who cannot fall
+     * back on reading the chart. */
     el('desc', {}, s).textContent =
-      'Line chart, ' + Math.round(x0) + ' to ' + Math.round(x1) + '. ' +
+      L('fig.desc.line').replace('{0}', Math.round(x0)).replace('{1}', Math.round(x1)) + ' ' +
       spec.series.map(ser => {
         const vals = ser.values.filter(v => v != null && isFinite(v));
-        if (!vals.length) return ser.label + ': no data';
-        return ser.label + ' (' + (ser.kind || 'observed') + ') from ' +
-          fmtNum(vals[0], spec.unit) + ' to ' + fmtNum(vals[vals.length - 1], spec.unit) +
+        if (!vals.length) return ser.label + L('fig.desc.noData');
+        return ser.label + ' (' + (ser.kind || 'observed') + ')' +
+          L('fig.desc.fromTo')
+            .replace('{0}', fmtNum(vals[0], spec.unit))
+            .replace('{1}', fmtNum(vals[vals.length - 1], spec.unit)) +
           ' ' + (spec.unit || '');
       }).join('; ') + '.';
     if (spec.yLabel) {
@@ -321,10 +339,12 @@ const RSAFigs = (function () {
     if (spec.subtitle) el('text', { x: 12, y: 31, class: 'rsa-subtitle' }, s).textContent = spec.subtitle;
     el('title', {}, s).textContent = (spec.title || 'Bar chart') +
       (spec.subtitle ? ' — ' + spec.subtitle : '');
-    el('desc', {}, s).textContent = 'Bar chart of ' + rows.length + ' items, from ' +
-      rows[rows.length - 1].label + ' at ' + fmtNum(rows[rows.length - 1].value, spec.unit) +
-      ' to ' + rows[0].label + ' at ' + fmtNum(rows[0].value, spec.unit) +
-      ' ' + (spec.unit || '') + '.';
+    el('desc', {}, s).textContent = L('fig.desc.bar')
+      .replace('{0}', rows.length)
+      .replace('{1}', rows[rows.length - 1].label)
+      .replace('{2}', fmtNum(rows[rows.length - 1].value, spec.unit))
+      .replace('{3}', rows[0].label)
+      .replace('{4}', fmtNum(rows[0].value, spec.unit)) + ' ' + (spec.unit || '') + '.';
     return s;
   }
 

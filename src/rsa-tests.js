@@ -1020,8 +1020,12 @@ const RSATests = (function () {
     RSAi18n.set('fr');
     const ssr = RSAIndicators.get('ssr');
     ok('equations stay in international notation', /Production\(milled\)/.test(ssr.equation));
-    ok('indicator labels ARE localised', RSAIndicators.label('ssr') !== ssr.label,
-       'fr: ' + RSAIndicators.label('ssr'));
+    /* get().label used to hold the ENGLISH name while label(id) held the French
+     * one, which meant every call site that reached for the descriptor -- most of
+     * them -- silently rendered English. get() now returns the localised label
+     * and keeps the English in labelEn for exports. */
+    ok('indicator labels ARE localised', RSAIndicators.label('ssr') === ssr.label &&
+       ssr.label !== ssr.labelEn, 'fr: ' + ssr.label + ' / en: ' + ssr.labelEn);
     ok('an indicator with no translation falls back to English',
        RSAIndicators.label('nonexistent') === 'nonexistent');
     RSAi18n.set(before);
@@ -1670,6 +1674,82 @@ const RSATests = (function () {
     ok('the Markdown includes the reference list', /## References/.test(md));
   }
 
+  /* Language coverage measured on OUTPUT, not on the dictionary.
+   *
+   * RSAi18n.coverage() reported 100% while roughly a third of the rendered
+   * interface was still English, because a string that was never routed through
+   * t() has no key and so cannot be counted as missing. These tests check the
+   * things a French reader actually sees. */
+  function testLanguageOutput() {
+    group('language coverage on rendered output');
+    const before = RSAi18n.get();
+    RSAi18n.set('fr');
+    try {
+      // Every indicator must have a French name. The food-balance-sheet family
+      // had none, which is why the country profile was the least translated
+      // panel in the platform.
+      const untranslated = RSAIndicators.list()
+        .filter(i => !RSAi18n.has('ind.' + i.id)).map(i => i.id);
+      ok('every indicator has a French label', untranslated.length === 0,
+         untranslated.join(', ') || 'all ' + RSAIndicators.list().length + ' translated');
+
+      // get() and list() must return the LOCALISED label. Call sites reach for
+      // .label far more naturally than for label(id), and every one of them
+      // used to render English.
+      ok('get() returns a localised label', RSAIndicators.get('ssr').label !== 'Self-sufficiency ratio (SSR)',
+         RSAIndicators.get('ssr').label);
+      ok('list() returns localised labels',
+         RSAIndicators.list().every(i => i.label === RSAIndicators.label(i.id)));
+      ok('but the English label is preserved for exports',
+         RSAIndicators.get('ssr').labelEn === 'Self-sufficiency ratio (SSR)');
+      ok('compute() carries both', (function () {
+        const b = RSA.balance('fao', { kind: 'country', id: 'SEN' }, { basis: 'milled' });
+        const r = RSAIndicators.compute('ssr', b);
+        return r.label !== r.labelEn && !!r.labelEn;
+      })());
+
+      // Units are localised for display only. Localising the raw `unit` field
+      // would break formatting, which compares it as a literal.
+      ok('units are localised for display', RSAIndicators.unitLabel('kg/capita') === 'kg/habitant');
+      ok('but the raw unit is untouched, because formatting compares it literally',
+         RSAIndicators.get('cpc').unit === 'kg/capita' && RSAIndicators.get('ssr').unit === '%');
+
+      // Country names.
+      const noFr = RSA.countries().filter(c => !RSAi18n.has('country.' + (c.nameEn || c.name)));
+      ok('every country has a French name', noFr.length === 0,
+         noFr.map(c => c.iso3).join(', ') || 'all 55 translated');
+      ok('RSA.country() returns the localised name',
+         RSA.country('COD').name === 'République démocratique du Congo', RSA.country('COD').name);
+      ok('and preserves the English name for exports',
+         RSA.country('COD').nameEn === 'Democratic Republic of the Congo');
+      ok('the Africa aggregate label is localised',
+         RSA.selectionLabel({ kind: 'africa' }).indexOf('Afrique') === 0,
+         RSA.selectionLabel({ kind: 'africa' }));
+
+      // Indicator groups.
+      ok('indicator groups are localised',
+         RSAIndicators.categoryLabel('Food security') === 'Sécurité alimentaire');
+
+      // The methodological notes attached to every balance.
+      const bal = RSA.balance('fao', { kind: 'country', id: 'SEN' }, { basis: 'milled' });
+      ok('the basis and trade notes are in French',
+         bal.notes.every(n => !/^Basis: |^Trade series: /.test(n.text)),
+         bal.notes.map(n => n.text.slice(0, 40)).join(' | '));
+
+      // Falling back must show the real English string, never a bare key.
+      ok('a missing key falls back to readable text, not a key',
+         RSAIndicators.label('__nope__') === '__nope__' &&
+         RSAIndicators.unitLabel('furlongs') === 'furlongs');
+    } finally {
+      RSAi18n.set(before);
+    }
+
+    ok('coverage() now says what it measures',
+       /dictionary/.test(RSAi18n.coverage().measures || ''));
+    ok('auditRendered() exists to measure the interface instead',
+       typeof RSAi18n.auditRendered === 'function');
+  }
+
   /* ================== validation, ranges, logging and the CARD reconciliation */
 
   function testValidation() {
@@ -2049,6 +2129,7 @@ const RSATests = (function () {
       testCondition();
       testVanOort();
       testDataDict();
+      testLanguageOutput();
       testValidation();
       testCard();
       testReport();

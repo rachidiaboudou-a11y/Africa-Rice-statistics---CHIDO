@@ -124,6 +124,168 @@ const RSAi18n = (function () {
                                  fr: 'Facture d’importation par habitant' },
     'ind.tradeBalanceValue':   { en: 'Rice trade balance',
                                  fr: 'Balance commerciale rizicole' },
+    /* The food-balance-sheet family. These appear on the country profile, which
+     * was the least translated panel in the platform until they were added. */
+    'ind.cpcFood':     { en: 'Per capita food consumption (FBS)',
+                         fr: 'Consommation alimentaire par habitant (BA)' },
+    'ind.foodUse':     { en: 'Rice used as food (FBS)',
+                         fr: 'Riz utilisé pour l’alimentation (BA)' },
+    'ind.ssrFood':     { en: 'Self-sufficiency vs food use (SSR-food)',
+                         fr: 'Autosuffisance vs usage alimentaire (TAS-alim.)' },
+    'ind.ssrFbs':      { en: 'Self-sufficiency, balance-sheet basis (CARD convention)',
+                         fr: 'Autosuffisance, base bilan alimentaire (convention CARD)' },
+    'ind.kcalRice':    { en: 'Calories from rice',     fr: 'Calories issues du riz' },
+
+    /* --------------------------------------------- methodological notes
+     * These appear on every panel, so leaving them in English left a quarter of
+     * a "French" screen in English. {0} is the milling rate. */
+    'note.basis.asPublished': {
+      en: 'Basis: as published. Production is paddy (FAOSTAT item 27); trade is milled rice (item 31). The ratio is therefore not unit-consistent, and SSR is biased upward because paddy overstates the edible quantity. This reproduces Gassi, Gul & Cetin (2025) and the bulk of the FAOSTAT-based literature. Switch to the milled basis for a unit-consistent figure.',
+      fr: 'Base : telle que publiée. La production est en paddy (FAOSTAT article 27) ; le commerce est en riz usiné (article 31). Le ratio n’est donc pas cohérent en unités, et le TAS est surestimé car le paddy surévalue la quantité comestible. Cela reproduit Gassi, Gul et Çetin (2025) et l’essentiel de la littérature fondée sur FAOSTAT. Passez à la base usinée pour un chiffre cohérent en unités.'
+    },
+    'note.basis.milled': {
+      en: 'Basis: milled equivalent. Paddy production multiplied by a milling rate of {0} before the ratio is taken, so production and trade are on the same commodity. Unit-consistent; SSR is lower than the as-published figure.',
+      fr: 'Base : équivalent usiné. La production de paddy est multipliée par un taux d’usinage de {0} avant le calcul du ratio, de sorte que production et commerce portent sur le même produit. Cohérent en unités ; le TAS est inférieur au chiffre tel que publié.'
+    },
+    'note.basis.paddy': {
+      en: 'Basis: paddy equivalent. Milled trade divided by a milling rate of {0} so that trade is expressed at farm-gate weight. Unit-consistent.',
+      fr: 'Base : équivalent paddy. Le commerce de riz usiné est divisé par un taux d’usinage de {0} afin d’exprimer les échanges au poids sortie-exploitation. Cohérent en unités.'
+    },
+    'note.trade.std': {
+      en: 'Trade series: FAOSTAT item 30, "Rice, paddy (rice milled equivalent)" -- the standardized TOTAL rice trade aggregate, covering husked, milled and broken rice on a single basis. This is the series that measures rice trade.',
+      fr: 'Série commerciale : FAOSTAT article 30, « Riz paddy (équivalent riz usiné) » — l’agrégat TOTAL normalisé du commerce du riz, couvrant le riz décortiqué, usiné et brisé sur une base unique. C’est la série qui mesure réellement le commerce du riz.'
+    },
+    'note.trade.milledOnly': {
+      en: 'Trade series: FAOSTAT item 31, "Rice, milled" -- the series used by Gassi et al. (2025), selected here for replication. It EXCLUDES BROKEN RICE, which is the dominant imported form across much of West Africa, so rice imports are understated and self-sufficiency overstated -- for Senegal in 2024 by a factor of about thirty-six. Use item 30 for anything other than reproducing that paper.',
+      fr: 'Série commerciale : FAOSTAT article 31, « Riz usiné » — la série utilisée par Gassi et al. (2025), retenue ici à des fins de réplication. Elle EXCLUT LE RIZ BRISÉ, forme importée dominante dans une grande partie de l’Afrique de l’Ouest ; les importations sont donc sous-estimées et l’autosuffisance surestimée — d’un facteur d’environ trente-six pour le Sénégal en 2024. Utilisez l’article 30 pour tout autre usage que la reproduction de cet article.'
+    },
+    'note.usda.basis': {
+      en: 'USDA PSD reports production, trade, consumption and stocks all on a milled basis, so no conversion is needed for unit consistency. Years are MARKET years, not calendar years, and are not directly comparable to FAOSTAT calendar years.',
+      fr: 'L’USDA PSD publie production, commerce, consommation et stocks sur une base usinée ; aucune conversion n’est nécessaire pour la cohérence des unités. Les années sont des campagnes COMMERCIALES, et non des années civiles : elles ne sont pas directement comparables aux années civiles de FAOSTAT.'
+    },
+    'note.usda.reported': {
+      en: 'Consumption: USDA\'s own domestic consumption estimate, which incorporates stock change and is not a residual.',
+      fr: 'Consommation : estimation propre de l’USDA de la consommation intérieure, qui intègre la variation des stocks et n’est pas un solde résiduel.'
+    },
+    'note.usda.derived': {
+      en: 'Consumption: computed as P + M - X to match the FAO (2001) definition used on the FAOSTAT side. This ignores USDA\'s stock data and its own consumption estimate; it is chosen so the two databases are compared on one definition rather than two.',
+      fr: 'Consommation : calculée comme P + M − X afin de correspondre à la définition FAO (2001) utilisée du côté FAOSTAT. Cela ignore les données de stocks de l’USDA et sa propre estimation de consommation ; ce choix permet de comparer les deux bases sur une seule définition plutôt que deux.'
+    },
+    'note.derivedZero': {
+      en: 'This selection includes at least one country that grows no rice at all, for which FAOSTAT carries no production row rather than a row of zeros. Production has been taken as zero in years where rice imports are reported, so the country appears with a self-sufficiency ratio of 0% rather than as missing data. That zero is DERIVED, not observed.',
+      fr: 'Cette sélection comprend au moins un pays qui ne cultive pas de riz, pour lequel FAOSTAT ne fournit aucune ligne de production plutôt qu’une ligne de zéros. La production est prise égale à zéro pour les années où des importations de riz sont déclarées, de sorte que le pays apparaît avec un taux d’autosuffisance de 0 % et non comme donnée manquante. Ce zéro est DÉDUIT, et non observé.'
+    },
+
+    /* ------------------------------------------- panel chrome and captions */
+    'sub.map':       { en: 'any indicator, any year, under any scenario',
+                       fr: 'tout indicateur, toute année, tout scénario' },
+    'sub.compare':   { en: 'select any number of countries',
+                       fr: 'sélectionnez autant de pays que vous le souhaitez' },
+    'card.ranking':  { en: 'Ranking, most recent observed year',
+                       fr: 'Classement, dernière année observée' },
+    'fig.africaPvC': { en: 'Africa: production against apparent consumption',
+                       fr: 'Afrique : production comparée à la consommation apparente' },
+    'fig.acrossAfrica': { en: '{0} across Africa', fr: '{0} à travers l’Afrique' },
+    'fig.mostRecent':   { en: '{0} — most recent observed year',
+                          fr: '{0} — dernière année observée' },
+    'ref.selfSufficiency': { en: 'self-sufficiency', fr: 'autosuffisance' },
+    /* Screen-reader descriptions for charts. */
+    'fig.desc.line':   { en: 'Line chart, {0} to {1}.',
+                         fr: 'Graphique linéaire, de {0} à {1}.' },
+    'fig.desc.bar':    { en: 'Bar chart of {0} items, from {1} at {2} to {3} at {4}',
+                         fr: 'Diagramme en barres de {0} éléments, de {1} à {2} jusqu’à {3} à {4}' },
+    'fig.desc.fromTo': { en: ' from {0} to {1}', fr: ' de {0} à {1}' },
+    'fig.desc.noData': { en: ': no data', fr: ' : aucune donnée' },
+    'note.composition': {
+      en: 'Aggregate composition changes over the period: between {0} and {1} of the {2} selected countries report production in any given year ({3} in {4}, {5} in {6}). Part of any change in the aggregate is therefore a change in which countries are counted, not in how much rice was grown. Compare countries individually where this matters.',
+      fr: 'La composition de l’agrégat évolue sur la période : entre {0} et {1} des {2} pays sélectionnés déclarent une production pour une année donnée ({3} en {4}, {5} en {6}). Une partie de toute variation de l’agrégat traduit donc un changement dans les pays comptabilisés, et non dans la quantité de riz produite. Comparez les pays individuellement lorsque cela importe.'
+    },
+    'sel.africa':    { en: 'Africa (all reporting countries)',
+                       fr: 'Afrique (tous les pays déclarants)' },
+    'kpi.apparentCons': { en: 'Apparent consumption', fr: 'Consommation apparente' },
+    'fig.perCountry':   { en: 'most recent observed year per country',
+                          fr: 'dernière année observée par pays' },
+    'fig.tileMap':      { en: 'schematic tile map', fr: 'carte schématique en tuiles' },
+    'tbl.rank':      { en: 'Rank',    fr: 'Rang' },
+    'tbl.country':   { en: 'Country', fr: 'Pays' },
+    'tbl.year':      { en: 'Year',    fr: 'Année' },
+
+    /* ---------------------------------------------------- indicator groups */
+    'cat.Production':    { en: 'Production',    fr: 'Production' },
+    'cat.Land':          { en: 'Land',          fr: 'Terres' },
+    'cat.Productivity':  { en: 'Productivity',  fr: 'Productivité' },
+    'cat.Trade':         { en: 'Trade',         fr: 'Commerce' },
+    'cat.Consumption':   { en: 'Consumption',   fr: 'Consommation' },
+    'cat.Population':    { en: 'Population',    fr: 'Population' },
+    'cat.Food security': { en: 'Food security', fr: 'Sécurité alimentaire' },
+    'cat.Economy':       { en: 'Economy',       fr: 'Économie' },
+
+    /* --------------------------------------------------------- country names
+     * French exonyms as used by the UN and the OIF. Countries whose French name
+     * is identical to the English one are listed anyway, so that coverage is a
+     * complete statement rather than a silent fallback. */
+    'country.Algeria': { en: 'Algeria', fr: 'Algérie' },
+    'country.Angola': { en: 'Angola', fr: 'Angola' },
+    'country.Benin': { en: 'Benin', fr: 'Bénin' },
+    'country.Botswana': { en: 'Botswana', fr: 'Botswana' },
+    'country.Burkina Faso': { en: 'Burkina Faso', fr: 'Burkina Faso' },
+    'country.Burundi': { en: 'Burundi', fr: 'Burundi' },
+    'country.Cabo Verde': { en: 'Cabo Verde', fr: 'Cabo Verde' },
+    'country.Cameroon': { en: 'Cameroon', fr: 'Cameroun' },
+    'country.Central African Republic': { en: 'Central African Republic',
+                                          fr: 'République centrafricaine' },
+    'country.Chad': { en: 'Chad', fr: 'Tchad' },
+    'country.Comoros': { en: 'Comoros', fr: 'Comores' },
+    'country.Congo': { en: 'Congo', fr: 'Congo' },
+    /* The registry stores plain-ASCII names because the source tables key on
+     * them, so the KEY must be the ASCII form. Both display names carry the
+     * proper diacritics -- "Cote d'Ivoire" is a mojibake artefact, not a name. */
+    'country.Cote d\'Ivoire': { en: 'Côte d’Ivoire', fr: 'Côte d’Ivoire' },
+    'country.Reunion': { en: 'Réunion', fr: 'La Réunion' },
+    'country.Democratic Republic of the Congo': { en: 'Democratic Republic of the Congo',
+                                                  fr: 'République démocratique du Congo' },
+    'country.Djibouti': { en: 'Djibouti', fr: 'Djibouti' },
+    'country.Egypt': { en: 'Egypt', fr: 'Égypte' },
+    'country.Equatorial Guinea': { en: 'Equatorial Guinea', fr: 'Guinée équatoriale' },
+    'country.Eritrea': { en: 'Eritrea', fr: 'Érythrée' },
+    'country.Eswatini': { en: 'Eswatini', fr: 'Eswatini' },
+    'country.Ethiopia': { en: 'Ethiopia', fr: 'Éthiopie' },
+    'country.Gabon': { en: 'Gabon', fr: 'Gabon' },
+    'country.Gambia': { en: 'Gambia', fr: 'Gambie' },
+    'country.Ghana': { en: 'Ghana', fr: 'Ghana' },
+    'country.Guinea': { en: 'Guinea', fr: 'Guinée' },
+    'country.Guinea-Bissau': { en: 'Guinea-Bissau', fr: 'Guinée-Bissau' },
+    'country.Kenya': { en: 'Kenya', fr: 'Kenya' },
+    'country.Lesotho': { en: 'Lesotho', fr: 'Lesotho' },
+    'country.Liberia': { en: 'Liberia', fr: 'Libéria' },
+    'country.Libya': { en: 'Libya', fr: 'Libye' },
+    'country.Madagascar': { en: 'Madagascar', fr: 'Madagascar' },
+    'country.Malawi': { en: 'Malawi', fr: 'Malawi' },
+    'country.Mali': { en: 'Mali', fr: 'Mali' },
+    'country.Mauritania': { en: 'Mauritania', fr: 'Mauritanie' },
+    'country.Mauritius': { en: 'Mauritius', fr: 'Maurice' },
+    'country.Morocco': { en: 'Morocco', fr: 'Maroc' },
+    'country.Mozambique': { en: 'Mozambique', fr: 'Mozambique' },
+    'country.Namibia': { en: 'Namibia', fr: 'Namibie' },
+    'country.Niger': { en: 'Niger', fr: 'Niger' },
+    'country.Nigeria': { en: 'Nigeria', fr: 'Nigéria' },
+    'country.Rwanda': { en: 'Rwanda', fr: 'Rwanda' },
+    'country.Sao Tome and Principe': { en: 'Sao Tome and Principe',
+                                       fr: 'Sao Tomé-et-Principe' },
+    'country.Senegal': { en: 'Senegal', fr: 'Sénégal' },
+    'country.Seychelles': { en: 'Seychelles', fr: 'Seychelles' },
+    'country.Sierra Leone': { en: 'Sierra Leone', fr: 'Sierra Leone' },
+    'country.Somalia': { en: 'Somalia', fr: 'Somalie' },
+    'country.South Africa': { en: 'South Africa', fr: 'Afrique du Sud' },
+    'country.South Sudan': { en: 'South Sudan', fr: 'Soudan du Sud' },
+    'country.Sudan': { en: 'Sudan', fr: 'Soudan' },
+    'country.Togo': { en: 'Togo', fr: 'Togo' },
+    'country.Tunisia': { en: 'Tunisia', fr: 'Tunisie' },
+    'country.Uganda': { en: 'Uganda', fr: 'Ouganda' },
+    'country.United Republic of Tanzania': { en: 'United Republic of Tanzania',
+                                             fr: 'République-Unie de Tanzanie' },
+    'country.Zambia': { en: 'Zambia', fr: 'Zambie' },
+    'country.Zimbabwe': { en: 'Zimbabwe', fr: 'Zimbabwe' },
 
     /* ------------------------------------------------------------- units */
     'unit.t':          { en: 't',           fr: 't' },
@@ -506,12 +668,58 @@ const RSAi18n = (function () {
     return !!(e && e[current] != null);
   }
 
+  /* Dictionary coverage: what share of the keys that EXIST have a translation.
+   *
+   * Read this for what it is. It reported 100% while roughly a quarter of the
+   * rendered interface was still English, because a string that was never
+   * routed through t() has no key and so cannot be counted as missing. It
+   * measures the dictionary, not the interface. `auditRendered()` measures the
+   * interface, and that is the number to trust when asking "is the French
+   * version actually French?". */
   function coverage() {
     const keys = Object.keys(STR);
     let done = 0;
     keys.forEach(k => { if (STR[k][current] != null) done++; });
     return { language: current, keys: keys.length, translated: done,
-             pct: keys.length ? Math.round(100 * done / keys.length) : 0 };
+             pct: keys.length ? Math.round(100 * done / keys.length) : 0,
+             measures: 'dictionary keys, not rendered text -- see auditRendered()' };
+  }
+
+  /* Walks what is actually on screen and reports the text that still looks
+   * English. Heuristic by necessity -- there is no way to ask a DOM node what
+   * language it is in -- but it counts function words that do not occur in
+   * French, which catches whole untranslated sentences reliably. Proper nouns
+   * and shared technical terms produce a small false-positive floor. */
+  function auditRendered(root) {
+    if (typeof document === 'undefined') return null;
+    /* English-EXCLUSIVE function words only. An earlier version included
+     * "production", "table", "note" and "source", which are spelled identically
+     * in French, so correctly translated sentences were counted as failures and
+     * the reported gap was several points too wide. A measurement that flags
+     * good work is worse than no measurement. */
+    const EN = /\b(the|and|of|with|which|that|from|this|these|those|is|are|was|were|by|for|between|than|when|where|year|years|share|growth|yield|imports|exports|consumption|shown|used|based|most|recent|observed|country|countries|each|both|only|other|such|its|their)\b/i;
+    const scope = root || document;
+    const out = { language: current, nodes: 0, englishLooking: 0, samples: [], byContainer: {} };
+    const walk = el => {
+      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let n;
+      while ((n = w.nextNode())) {
+        const t = n.textContent.trim();
+        if (t.length < 12) continue;
+        out.nodes++;
+        if (current !== 'en' && EN.test(t)) {
+          out.englishLooking++;
+          const box = n.parentElement && n.parentElement.closest('.panel');
+          const id = box ? box.id : '(chrome)';
+          out.byContainer[id] = (out.byContainer[id] || 0) + 1;
+          if (out.samples.length < 30) out.samples.push({ where: id, text: t.slice(0, 90) });
+        }
+      }
+    };
+    walk(scope.body || scope);
+    out.pctEnglish = out.nodes ? +(100 * out.englishLooking / out.nodes).toFixed(1) : 0;
+    out.pctTranslated = +(100 - out.pctEnglish).toFixed(1);
+    return out;
   }
 
   function locale() { return current === 'fr' ? 'fr-FR' : 'en-GB'; }
@@ -571,6 +779,7 @@ const RSAi18n = (function () {
   return {
     t: t, has: has, set: set, get: get, init: init, onChange: onChange,
     num: num, pct: pct, date: date, locale: locale, coverage: coverage,
+    auditRendered: auditRendered,
     STRINGS: STR
   };
 })();

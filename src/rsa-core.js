@@ -90,10 +90,30 @@ const RSA = (function () {
 
   /* ------------------------------------------------------------- geography */
 
-  function countries() { return state.registry.slice(); }
+  /* Registry entries with `name` ALREADY LOCALISED, and `nameEn` preserved.
+   *
+   * The registry stores English names because that is what the source tables key
+   * on. Display code reaches for `.name` at some 25 call sites, and every one of
+   * them rendered English regardless of the chosen language. Localising here
+   * makes the obvious thing to write the correct one, exactly as for indicator
+   * labels. Exports are unaffected in substance: every CSV also carries the ISO3
+   * code, which is the language-independent key. */
+  function localised(c) {
+    if (!c) return null;
+    if (typeof RSAi18n === 'undefined') return c;
+    const key = 'country.' + c.name;
+    if (!RSAi18n.has(key)) return c;
+    const fr = RSAi18n.t(key);
+    if (fr === c.name) return c;
+    // A shallow copy, not Object.create: a prototype view would hide every field
+    // from Object.keys and JSON.stringify, and registry entries get serialised.
+    return Object.assign({}, c, { name: fr, nameEn: c.name });
+  }
+
+  function countries() { return state.registry.map(localised); }
 
   function country(iso3) {
-    return state.registry.find(c => c.iso3 === iso3) || null;
+    return localised(state.registry.find(c => c.iso3 === iso3) || null);
   }
 
   function regions() {
@@ -142,13 +162,24 @@ const RSA = (function () {
 
   function resolve(sel) { return resolveDetailed(sel).members; }
 
+  /* Localised country name. The registry stores the English name because that is
+   * what the source tables key on; this is the display form. Falls back to the
+   * English name so an unlisted country shows its real name, never a key. */
+  function countryName(iso3) {
+    const c = country(iso3);
+    const en = c ? c.name : iso3;
+    if (typeof RSAi18n === 'undefined') return en;
+    const key = 'country.' + en;
+    return RSAi18n.has(key) ? RSAi18n.t(key) : en;
+  }
+
   function selectionLabel(sel) {
     if (!sel) return '';
     switch (sel.kind) {
-      case 'country': { const c = country(sel.id); return c ? c.name : sel.id; }
+      case 'country': return countryName(sel.id);
       case 'region':  return sel.id;
       case 'bloc':    return (state.meta.blocs[sel.id] || {}).label || sel.id;
-      case 'africa':  return 'Africa (all reporting countries)';
+      case 'africa':  return noteText('sel.africa');
       case 'custom':  return 'Custom group (' + (sel.ids || []).length + ' countries)';
       default:        return '';
     }
@@ -462,14 +493,7 @@ const RSA = (function () {
     out.notes = out.notes.concat(basisNotes(dbName, basis, rate, stdTrade, usdaReported));
 
     if (out.derivedZeroProduction) {
-      out.notes.push({
-        level: 'info',
-        text: 'This selection includes at least one country that grows no rice at all, for which ' +
-              'FAOSTAT carries no production row rather than a row of zeros. Production has been ' +
-              'taken as zero in years where rice imports are reported, so the country appears with a ' +
-              'self-sufficiency ratio of 0% rather than as missing data. That zero is DERIVED, not ' +
-              'observed.'
-      });
+      out.notes.push({ level: 'info', text: noteText('note.derivedZero') });
     }
 
     /* An aggregate summed over a changing set of reporting countries manufactures
@@ -489,12 +513,10 @@ const RSA = (function () {
       if (firstRep && maxRep > minRep) {
         out.notes.push({
           level: 'warning',
-          text: 'Aggregate composition changes over the period: between ' + minRep + ' and ' + maxRep +
-                ' of the ' + isoList.length + ' selected countries report production in any given ' +
-                'year (' + firstRep.n + ' in ' + firstRep.year + ', ' + lastRep.n + ' in ' +
-                lastRep.year + '). Part of any change in the aggregate is therefore a change in which ' +
-                'countries are counted, not in how much rice was grown. Compare countries ' +
-                'individually where this matters.'
+          text: noteText('note.composition')
+            .replace('{0}', minRep).replace('{1}', maxRep).replace('{2}', isoList.length)
+            .replace('{3}', firstRep.n).replace('{4}', firstRep.year)
+            .replace('{5}', lastRep.n).replace('{6}', lastRep.year)
         });
       }
       out.reportingRange = { min: minRep === Infinity ? 0 : minRep, max: maxRep,
@@ -526,59 +548,36 @@ const RSA = (function () {
     return _noRice[key];
   }
 
+  /* Localised note text. These notes are attached to every balance and rendered
+   * on every panel, so leaving them untranslated left a quarter of a "French"
+   * screen in English. Falls back to the key's English text when no translation
+   * exists, never to a bare key. */
+  function noteText(key, arg) {
+    if (typeof RSAi18n === 'undefined' || !RSAi18n.has(key)) return key;
+    const s = RSAi18n.t(key);
+    return arg == null ? s : s.replace('{0}', arg);
+  }
+
   function basisNotes(dbName, basis, rate, stdTrade, usdaReported) {
     const notes = [];
+    const r = rate.toFixed(2);
     if (dbName === 'fao') {
       if (basis === 'asPublished') {
-        notes.push({
-          level: 'warning',
-          text: 'Basis: as published. Production is paddy (FAOSTAT item 27); trade is milled rice ' +
-                '(item 31). The ratio is therefore not unit-consistent, and SSR is biased upward ' +
-                'because paddy overstates the edible quantity. This reproduces Gassi, Gul & Cetin ' +
-                '(2025) and the bulk of the FAOSTAT-based literature. Switch to the milled basis ' +
-                'for a unit-consistent figure.'
-        });
+        notes.push({ level: 'warning', text: noteText('note.basis.asPublished') });
       } else if (basis === 'milled') {
-        notes.push({
-          level: 'info',
-          text: 'Basis: milled equivalent. Paddy production multiplied by a milling rate of ' +
-                rate.toFixed(2) + ' before the ratio is taken, so production and trade are on the ' +
-                'same commodity. Unit-consistent; SSR is lower than the as-published figure.'
-        });
+        notes.push({ level: 'info', text: noteText('note.basis.milled', r) });
       } else {
-        notes.push({
-          level: 'info',
-          text: 'Basis: paddy equivalent. Milled trade divided by a milling rate of ' + rate.toFixed(2) +
-                ' so that trade is expressed at farm-gate weight. Unit-consistent.'
-        });
+        notes.push({ level: 'info', text: noteText('note.basis.paddy', r) });
       }
       notes.push({
         level: stdTrade ? 'info' : 'warning',
-        text: stdTrade
-          ? 'Trade series: FAOSTAT item 30, "Rice, paddy (rice milled equivalent)" -- the ' +
-            'standardized TOTAL rice trade aggregate, covering husked, milled and broken rice on a ' +
-            'single basis. This is the series that measures rice trade.'
-          : 'Trade series: FAOSTAT item 31, "Rice, milled" -- the series used by Gassi et al. (2025), ' +
-            'selected here for replication. It EXCLUDES BROKEN RICE, which is the dominant imported ' +
-            'form across much of West Africa, so rice imports are understated and self-sufficiency ' +
-            'overstated -- for Senegal in 2024 by a factor of about thirty-six. Use item 30 for ' +
-            'anything other than reproducing that paper.'
+        text: noteText(stdTrade ? 'note.trade.std' : 'note.trade.milledOnly')
       });
     } else {
-      notes.push({
-        level: 'info',
-        text: 'USDA PSD reports production, trade, consumption and stocks all on a milled basis, so ' +
-              'no conversion is needed for unit consistency. Years are MARKET years, not calendar ' +
-              'years, and are not directly comparable to FAOSTAT calendar years.'
-      });
+      notes.push({ level: 'info', text: noteText('note.usda.basis') });
       notes.push({
         level: usdaReported ? 'info' : 'warning',
-        text: usdaReported
-          ? 'Consumption: USDA\'s own domestic consumption estimate, which incorporates stock change ' +
-            'and is not a residual.'
-          : 'Consumption: computed as P + M - X to match the FAO (2001) definition used on the ' +
-            'FAOSTAT side. This ignores USDA\'s stock data and its own consumption estimate; it is ' +
-            'chosen so the two databases are compared on one definition rather than two.'
+        text: noteText(usdaReported ? 'note.usda.reported' : 'note.usda.derived')
       });
     }
     return notes;
@@ -845,6 +844,7 @@ const RSA = (function () {
     state: state,
     countries: countries,
     country: country,
+    countryName: countryName,
     regions: regions,
     blocs: blocs,
     resolve: resolve,

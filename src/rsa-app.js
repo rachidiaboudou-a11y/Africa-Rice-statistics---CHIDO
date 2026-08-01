@@ -190,7 +190,7 @@
     const billA = lastOf(I.compute('importBill', africa));
 
     const heroFig = RSAFigs.timeSeries({
-      title: 'Africa: production against apparent consumption',
+      title: T('fig.africaPvC'),
       unit: 't', series: [
         { label: 'Production', years: africa.years, values: africa.production, kind: 'observed', colour: '#7cc39b' },
         { label: 'Consumption', years: africa.years, values: africa.consumption, kind: 'observed', colour: '#e0a35c' }
@@ -230,7 +230,7 @@
       kpi('Self-sufficiency ratio', f(ssrA && ssrA.value) + '%', ssrA && ssrA.year, 'observed'),
       kpi('Import dependency', f(idrA && idrA.value) + '%', idrA && idrA.year, 'observed'),
       kpi('Production', tonnes(prodA && prodA.value), prodA && prodA.year, 'observed'),
-      kpi('Apparent consumption', tonnes(consA && consA.value), consA && consA.year, 'observed'),
+      kpi(T('kpi.apparentCons'), tonnes(consA && consA.value), consA && consA.year, 'observed'),
       kpi('Per capita consumption', f(cpcA && cpcA.value) + ' kg', cpcA && cpcA.year, 'observed'),
       kpi('Rice import bill', usd1k(billA && billA.value), billA && billA.year, 'observed')
     ]));
@@ -239,7 +239,7 @@
     // map
     el.appendChild(h('div', { class: 'section-h' }, [
       h('h2', { text: T('sec.map') }),
-      h('p', { text: 'click a country to open its profile' })
+      h('p', { text: T('sec.mapHint') })
     ]));
     const mapCtl = h('div', { class: 'controls' }, [
       field('Indicator', selectEl('map-ind', [
@@ -279,7 +279,7 @@
     // SSR gets a fixed 0-120 domain so colours mean the same thing across sessions.
     const domain = S.mapIndicator === 'ssr' ? [0, 120] : null;
     const node = RSAFigs.africaMap(vals, {
-      title: ind.label + ' — most recent observed year',
+      title: T('fig.mostRecent').replace('{0}', ind.label),
       subtitle: RSA.state[S.db === 'usda' ? 'usda' : 'fao'].db,
       unit: ind.unit, higherIsBetter: higherIsBetter, domain: domain,
       suffix: ind.unit === '%' ? '%' : ''
@@ -293,7 +293,7 @@
       syncSelection();
       go('profile');
     });
-    return figure(ind.label + ' across Africa', node, 'schematic tile map');
+    return figure(T('fig.acrossAfrica').replace('{0}', ind.label), node, T('fig.tileMap'));
   }
 
   function rankCard(indicatorId, title, dir, unit) {
@@ -303,7 +303,7 @@
       reference: indicatorId === 'ssr' ? 100 : null,
       rows: rows.map(r => ({ label: r.name, value: r.value, title: r.name + ' (' + r.year + ')' }))
     }, { width: 620, labelWidth: 180 });
-    return figure(title, node, 'most recent observed year per country');
+    return figure(title, node, T('fig.perCountry'));
   }
 
   /* ----------------------------------------------------------------- map
@@ -322,7 +322,8 @@
   function mapIndicatorOptions() {
     return MAP_INDICATOR_IDS.map(id => {
       const d = RSAIndicators.get(id);
-      return [id, RSAIndicators.label(id) + (d && d.unit ? ' (' + d.unit + ')' : '')];
+      return [id, RSAIndicators.label(id) +
+        (d && d.unit ? ' (' + RSAIndicators.unitLabel(d.unit) + ')' : '')];
     });
   }
 
@@ -434,7 +435,7 @@
 
     el.appendChild(h('div', { class: 'section-h' }, [
       h('h2', { text: 'Africa map' }),
-      h('p', { text: 'any indicator, any year, under any scenario' })
+      h('p', { text: T('sub.map') })
     ]));
 
     // controls
@@ -562,7 +563,7 @@
           .filter(r => r.v != null && isFinite(r.v))
           .sort((a, b2) => b2.v - a.v);
         figHost.appendChild(card('Values in ' + S.mapYear + ' (' + rows.length + ' countries)', [
-          h('div', { class: 'scroll-y' }, [table(null, ['Rank', 'Country', ind.label],
+          h('div', { class: 'scroll-y' }, [table(null, [T('tbl.rank'), T('tbl.country'), ind.label],
             rows.map((r, i) => [i + 1, r.name, f(r.v, ind.unit === '%' ? 1 : 0)]),
             [true, false, true])]),
           h('div', { class: 'controls' }, [
@@ -872,7 +873,7 @@
     el.innerHTML = '';
     el.appendChild(h('div', { class: 'section-h' }, [
       h('h2', { text: T('sec.compare') }),
-      h('p', { text: 'select any number of countries' })
+      h('p', { text: T('sub.compare') })
     ]));
 
     const grid = h('div', { class: 'checkgrid' });
@@ -907,7 +908,7 @@
         };
       }).sort((a, b2) => (b2.ssr || -1) - (a.ssr || -1));
 
-      o.appendChild(card('Ranking, most recent observed year', [
+      o.appendChild(card(T('card.ranking'), [
         table(null,
           ['Country', 'SSR (%)', 'IDR (%)', 'Production', 'Yield (kg/ha)', 'Imports', 'CPC (kg)', 'Import bill'],
           rows.map(r => [r.name, f(r.ssr), f(r.idr), tonnes(r.prod), f(r.yld, 0), tonnes(r.imp),
@@ -1077,17 +1078,22 @@
 
     // Charts of the headline series.
     const g = h('div', { class: 'grid g2' });
-    [['ssr', 'Self-sufficiency ratio', '%', [{ value: 100, label: 'self-sufficiency' }]],
-     ['idr', 'Import dependency ratio', '%', null],
-     ['production', 'Production', 't', null],
-     ['consumption', 'Apparent consumption', 't', null],
-     ['yield', 'Yield', 'kg/ha', null],
-     ['cpc', 'Per capita consumption', 'kg/capita', null]].forEach(([id, title, unit, ref]) => {
+    // Titles come from the indicator registry rather than being repeated here,
+    // so they follow the chosen language and cannot drift from the labels used
+    // everywhere else.
+    [['ssr', '%', [{ value: 100, label: T('ref.selfSufficiency') }]],
+     ['idr', '%', null],
+     ['production', 't', null],
+     ['consumption', 't', null],
+     ['yield', 'kg/ha', null],
+     ['cpc', 'kg/capita', null]].forEach(([id, unit, ref]) => {
+      const title = RSAIndicators.label(id);
       const c = computed[TREND_IDS.indexOf(id)];
       if (!c) return;
       g.appendChild(figure(title, RSAFigs.timeSeries({
-        title: title, unit: unit, yLabel: unit, reference: ref,
-        series: [{ label: 'Observed', years: c.years, values: c.values,
+        title: title, unit: RSAIndicators.unitLabel(unit), yLabel: RSAIndicators.unitLabel(unit),
+        reference: ref,
+        series: [{ label: T('kind.observed'), years: c.years, values: c.values,
                    kind: 'observed', colour: '#4fb98a' }]
       }, { width: 620, zeroBase: id !== 'ssr' && id !== 'idr' })));
     });
@@ -3597,7 +3603,7 @@
     const sel = $('#c-sel');
     sel.innerHTML = '';
     const gA = h('optgroup', { label: 'Aggregate' });
-    gA.appendChild(h('option', { value: 'a:', text: 'Africa (all reporting countries)' }));
+    gA.appendChild(h('option', { value: 'a:', text: T('sel.africa') }));
     sel.appendChild(gA);
     const gR = h('optgroup', { label: 'UN subregion' });
     RSA.regions().forEach(r => gR.appendChild(h('option', { value: 'r:' + r, text: r })));

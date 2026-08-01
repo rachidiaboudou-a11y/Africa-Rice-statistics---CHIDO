@@ -591,11 +591,12 @@ const RSAIndicators = (function () {
 
   /* ---------------------------------------------------------------- access */
 
+  /* Descriptors with localised labels -- see get() for why the localisation
+   * lives here rather than at each call site. */
   function list(category) {
-    const ids = Object.keys(INDICATORS);
-    return ids
+    return Object.keys(INDICATORS)
       .filter(id => !category || INDICATORS[id].category === category)
-      .map(id => INDICATORS[id]);
+      .map(id => get(id));
   }
 
   function categories() {
@@ -607,7 +608,47 @@ const RSAIndicators = (function () {
     return out;
   }
 
-  function get(id) { return INDICATORS[id] || null; }
+  /* Returns the descriptor with `label` ALREADY LOCALISED.
+   *
+   * Callers reach for `get(id).label` far more naturally than for `label(id)`,
+   * and every place that did so silently rendered English. Rather than police
+   * that at ~40 call sites, the localisation is applied here, so the obvious
+   * thing to write is also the correct one. `labelEn` keeps the English name
+   * for exports, CSV headers and the reproducibility manifest, which must stay
+   * readable by whoever receives the file regardless of the UI language. */
+  function get(id) {
+    const ind = INDICATORS[id];
+    if (!ind) return null;
+    const loc = label(id);
+    if (loc === ind.label) return ind;
+    // A shallow copy, not Object.create: a prototype view would hide every field
+    // from Object.keys and JSON.stringify, and descriptors get serialised into
+    // the data dictionary and the reproducibility manifest.
+    return Object.assign({}, ind, { label: loc, labelEn: ind.label });
+  }
+
+  /* Localised unit for DISPLAY only.
+   *
+   * The raw `unit` field stays untouched because formatting logic compares it
+   * as a literal (`unit === '%'` decides decimal places in several places).
+   * Localising it in place would silently change number formatting the moment
+   * the language changed, which is a far worse bug than an untranslated unit. */
+  const UNIT_KEYS = {
+    't': 'unit.t', 'ha': 'unit.ha', 'kg/ha': 'unit.kgha',
+    'kg/capita': 'unit.kgcap', '%': 'unit.pct'
+  };
+  function unitLabel(unit) {
+    if (typeof RSAi18n === 'undefined' || !unit) return unit || '';
+    const key = UNIT_KEYS[unit];
+    return (key && RSAi18n.has(key)) ? RSAi18n.t(key) : unit;
+  }
+
+  /* Localised name of an indicator group ("Trade", "Food security", ...). */
+  function categoryLabel(cat) {
+    if (typeof RSAi18n === 'undefined') return cat;
+    const key = 'cat.' + cat;
+    return RSAi18n.has(key) ? RSAi18n.t(key) : cat;
+  }
 
   /* Localised display label. Falls back to the English label when no translation
    * exists, so an untranslated indicator shows its real name rather than a key.
@@ -659,9 +700,13 @@ const RSAIndicators = (function () {
 
     return {
       id: id,
-      label: ind.label,
+      // Localised for display; labelEn kept so exports stay language-independent.
+      label: label(id),
+      labelEn: ind.label,
       unit: ind.unit,
+      unitLabel: unitLabel(ind.unit),
       category: ind.category,
+      categoryLabel: categoryLabel(ind.category),
       equation: ind.equation,
       latex: ind.latex,
       variables: ind.variables,
@@ -712,6 +757,8 @@ const RSAIndicators = (function () {
     categories: categories,
     get: get,
     label: label,
+    categoryLabel: categoryLabel,
+    unitLabel: unitLabel,
     compute: compute,
     describe: describe,
     cagr: cagr,

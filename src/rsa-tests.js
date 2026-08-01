@@ -1750,6 +1750,139 @@ const RSATests = (function () {
        typeof RSAi18n.auditRendered === 'function');
   }
 
+  /* ==================================================== guided policy analysis */
+
+  function testAdvisor() {
+    group('policy advisor');
+    const A = RSAAdvisor;
+    const b = iso => RSA.balance('fao', { kind: 'country', id: iso }, { basis: 'milled' });
+
+    /* The decomposition is an IDENTITY, not a model. ln(SSR1/SSR0) must equal
+     * ln(P1/P0) - ln(C1/C0) to machine precision for every country; any residual
+     * means an arithmetic slip, not an error term to be interpreted. */
+    let worst = 0, checked = 0;
+    RSA.countries().forEach(c => {
+      const d = A.decompose(b(c.iso3), {});
+      if (!d.ok) return;
+      checked++;
+      worst = Math.max(worst, Math.abs(d.residual));
+    });
+    ok('the growth decomposition is exact for every country',
+       checked > 30 && worst < 1e-9,
+       checked + ' countries, worst residual ' + worst.toExponential(2));
+
+    // Supply minus demand must equal the SSR movement, by construction.
+    let mismatch = 0;
+    ['BEN', 'SEN', 'NGA', 'MLI', 'EGY', 'TZA'].forEach(iso => {
+      const d = A.decompose(b(iso), {});
+      if (!d.ok) return;
+      const implied = 100 * ((1 + d.supplyGrowth / 100) / (1 + d.demandGrowth / 100) - 1);
+      if (Math.abs(implied - d.ssrGrowth) > 0.02) mismatch++;
+    });
+    ok('supply growth minus demand growth reproduces the SSR trend', mismatch === 0,
+       mismatch + ' mismatches');
+
+    // The four terms must be the four terms: two supply, two demand.
+    const d0 = A.decompose(b('SEN'), {});
+    ok('the decomposition has exactly two supply and two demand terms',
+       d0.terms.filter(t => t.side === 'supply').length === 2 &&
+       d0.terms.filter(t => t.side === 'demand').length === 2);
+    ok('contribution shares sum to 100%',
+       Math.abs(d0.terms.reduce((s, t) => s + t.share, 0) - 100) < 0.5,
+       fmt(d0.terms.reduce((s, t) => s + t.share, 0)));
+
+    /* Per-capita consumption is consumption (tonnes) over population (persons),
+     * so it needs x1000 to be the kg/capita it is labelled with. Without it the
+     * level is out by three orders of magnitude -- Benin 1961 showed as 0.0012
+     * kg/capita rather than 1.24. */
+    const dBen = A.decompose(b('BEN'), {});
+    const diet = dBen.terms.filter(t => t.key === 'diet')[0];
+    ok('per-capita consumption is in kg/capita, not tonnes/capita',
+       diet.to > 20 && diet.to < 400, fmt(diet.to) + ' kg/capita at ' + dBen.window.to);
+    // And it must agree with the CPC indicator computed independently.
+    const cpc = RSAIndicators.compute('cpc', b('BEN'));
+    const iT = cpc.years.indexOf(dBen.window.to);
+    near('and it matches the CPC indicator computed separately', diet.to, cpc.values[iT], 0.01);
+
+    /* A full-record endpoint pair can be exactly right and useless. Benin is the
+     * case: 15.9% self-sufficient in 1961 and 15.9% in 2024, hiding a rise to
+     * 64.6% and a collapse. The recent window must be the one diagnosed on. */
+    const per = A.decomposePeriods(b('BEN'), {});
+    ok('a long record is also decomposed over a recent window',
+       per.ok && per.recent != null && per.recent.window.from > per.full.window.from,
+       per.ok ? (per.recent ? per.recent.window.from + '-' + per.recent.window.to : 'none') : per.reason);
+    ok('and the recent window is the one used as the headline',
+       per.headline === per.recent);
+
+    // Diagnosis must produce ranked, evidenced causes.
+    const dg = A.diagnose(b('BEN'), {});
+    ok('the diagnosis returns ranked causes', dg.ok && dg.causes.length > 0,
+       dg.ok ? dg.causes.map(c => c.id).join(', ') : dg.reason);
+    ok('every cause carries a finding, an implication and evidence',
+       dg.causes.every(c => c.finding && c.implication && c.evidence),
+       dg.causes.filter(c => !(c.finding && c.implication && c.evidence)).map(c => c.id).join(','));
+    const SEV = ['critical', 'high', 'medium', 'info', 'good'];
+    ok('severities are drawn from the declared set',
+       dg.causes.every(c => SEV.indexOf(c.severity) >= 0));
+    ok('causes are ordered most severe first', (function () {
+      for (let i = 1; i < dg.causes.length; i++) {
+        if (SEV.indexOf(dg.causes[i].severity) < SEV.indexOf(dg.causes[i - 1].severity)) return false;
+      }
+      return true;
+    })());
+
+    // Benin's re-export distortion must be detected: it is the clearest case in
+    // Africa and the one the platform has been reasoning about throughout.
+    ok('Benin is flagged for import dependence or re-export',
+       dg.causes.some(c => c.id === 're-export' || c.id === 'import-dependence'),
+       dg.causes.map(c => c.id).join(', '));
+
+    /* A self-sufficient country must not be told it has a shortfall. Tanzania is
+     * the one African country currently above 100% (117.1% in 2024); Egypt is at
+     * 98.5% and is deliberately NOT flagged, which is the sharper test of the
+     * threshold. Egypt did exceed 180% in the 1960s, so this is a live boundary,
+     * not a country that was never near it. */
+    const dgT = A.diagnose(b('TZA'), {});
+    ok('Tanzania is recognised as already self-sufficient',
+       dgT.ok && dgT.causes.some(c => c.id === 'already'),
+       dgT.ok ? dgT.causes.map(c => c.id).join(', ') : dgT.reason);
+    const dgE = A.diagnose(b('EGY'), {});
+    ok('Egypt at 98.5% is NOT flagged as already self-sufficient',
+       dgE.ok && !dgE.causes.some(c => c.id === 'already'),
+       dgE.ok ? fmt(dgE.ssr.value) + '% in ' + dgE.ssr.year : dgE.reason);
+
+    // Prescription must be driven by the diagnosis, and every instrument must
+    // carry its objection -- an instrument without its caveat is not advice.
+    const pr = A.prescribe(b('BEN'), {});
+    ok('prescription returns instruments selected by the diagnosis',
+       pr.ok && pr.instruments.length > 0, pr.ok ? pr.instruments.length + ' instruments' : pr.reason);
+    ok('every instrument states why it helps AND what is wrong with it',
+       pr.instruments.every(i => i.why && i.caveat && i.becauseOf),
+       pr.instruments.filter(i => !i.caveat).map(i => i.id).join(','));
+    ok('no instrument is offered twice',
+       new Set(pr.instruments.map(i => i.id)).size === pr.instruments.length);
+    ok('the tariff instrument carries the porous-border objection',
+       (RSAAdvisor.INSTRUMENTS.trade.filter(i => i.id === 'tariff')[0] || {}).caveat
+         .indexOf('porous') >= 0);
+
+    // Peers must be real and exclude the country being advised.
+    const pe = A.peers(b('SEN'), {});
+    ok('peer countries exclude the selection itself',
+       !pe.all.some(p => p.iso3 === 'SEN'));
+    ok('self-sufficient peers really are at or above 100%',
+       pe.selfSufficient.every(p => p.ssr >= 100),
+       pe.selfSufficient.map(p => p.iso3 + ' ' + fmt(p.ssr)).join(', '));
+
+    // Thresholds must be declared rather than buried, so they can be argued with.
+    ok('every threshold used in the diagnosis is published',
+       Object.keys(A.THRESHOLDS).length >= 8 &&
+       Object.keys(A.THRESHOLDS).every(k => typeof A.THRESHOLDS[k] === 'number'));
+
+    // Regions and the continent must work, not only countries.
+    const dgR = A.diagnose(RSA.balance('fao', { kind: 'africa' }, { basis: 'milled' }), {});
+    ok('the advisor works on the continental aggregate too', dgR.ok && dgR.causes.length > 0);
+  }
+
   /* ================== validation, ranges, logging and the CARD reconciliation */
 
   function testValidation() {
@@ -2129,6 +2262,7 @@ const RSATests = (function () {
       testCondition();
       testVanOort();
       testDataDict();
+      testAdvisor();
       testLanguageOutput();
       testValidation();
       testCard();

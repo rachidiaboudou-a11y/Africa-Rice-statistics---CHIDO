@@ -1,4 +1,4 @@
-# Bundles src/shell.html plus the JS modules into a single index.html.
+﻿# Bundles src/shell.html plus the JS modules into a single index.html.
 #
 # The platform ships as one self-contained HTML file so it can be opened from a
 # USB stick, emailed, or dropped on any static host with no build step and no
@@ -30,6 +30,7 @@ $modules = @(
   "rsa-policy.js",
   "rsa-crisis.js",
   "rsa-condition.js",
+  "rsa-advisor.js",
   "rsa-vanoort.js",
   "rsa-datadict.js",
   "rsa-figs.js",
@@ -63,3 +64,4 @@ $out = Join-Path $root "index.html"
 
 $kb = [math]::Round((Get-Item $out).Length / 1KB, 1)
 Write-Output ("[build] index.html  {0} KB  ({1} modules: {2})" -f $kb, $included.Count, ($included -join ", "))
+

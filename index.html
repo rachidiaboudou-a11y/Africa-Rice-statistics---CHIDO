@@ -361,6 +361,7 @@ footer p { margin: 4px 0; }
     <section class="panel" id="p-forecast" role="tabpanel"></section>
     <section class="panel" id="p-scenarios" role="tabpanel"></section>
     <section class="panel" id="p-condition" role="tabpanel"></section>
+    <section class="panel" id="p-advisor" role="tabpanel"></section>
     <section class="panel" id="p-crisis" role="tabpanel"></section>
     <section class="panel" id="p-westafrica" role="tabpanel"></section>
     <section class="panel" id="p-datused" role="tabpanel"></section>
@@ -382,7 +383,7 @@ footer p { margin: 4px 0; }
 </footer>
 
 <script>
-/* Rice Statistics for Africa -- bundled 2026-08-01 14:05:47 UTC */
+/* Rice Statistics for Africa -- bundled 2026-08-01 14:43:11 UTC */
 /* ===== rsa-i18n.js ========================================================= */
 /* Rice Statistics for Africa -- internationalisation (English / French).
  *
@@ -829,6 +830,93 @@ const RSAi18n = (function () {
 
     /* ------------------------------------------- self-sufficiency condition */
     'tab.condition':  { en: 'Self-sufficiency condition', fr: 'Condition d’autosuffisance' },
+
+    /* ------------------------------------------ guided policy analysis */
+    'tab.advisor':    { en: 'Policy advisor', fr: 'Conseil en politiques' },
+    'adv.title':      { en: 'Policy Advisor — guided self-sufficiency analysis',
+                        fr: 'Conseil en politiques — analyse guidée de l’autosuffisance' },
+    'adv.lede':       { en: 'what drives self-sufficiency, why a country has not reached it, what would get it there, and who already has',
+                        fr: 'ce qui détermine l’autosuffisance, pourquoi un pays ne l’a pas atteinte, ce qu’il faudrait pour y parvenir, et qui y est déjà arrivé' },
+    'adv.disclosure': {
+      en: 'This is a reasoning engine, not a language model. It decomposes the data with an exact identity, ranks what it finds against stated thresholds, and assembles the explanation from that — so every sentence carries the numbers it came from, the same question always gives the same answer, and nothing here can be confidently wrong about a trend it never looked at. The thresholds are published in the module and can be argued with.',
+      fr: 'Il s’agit d’un moteur de raisonnement, et non d’un modèle de langage. Il décompose les données selon une identité exacte, classe ses observations selon des seuils explicites et construit l’explication à partir de là — chaque phrase porte donc les chiffres dont elle provient, une même question donne toujours la même réponse, et rien ici ne peut se tromper avec assurance sur une tendance qu’il n’a jamais examinée. Les seuils sont publiés dans le module et peuvent être discutés.'
+    },
+    'adv.driversTitle': { en: 'What drives self-sufficiency here',
+                          fr: 'Ce qui détermine l’autosuffisance ici' },
+    'adv.driversLede': {
+      en: 'Self-sufficiency is a race between supply and demand. Because production is area times yield and consumption is population times per-capita use, the movement of the ratio decomposes exactly — not approximately — into four terms. Window: {0}–{1}.',
+      fr: 'L’autosuffisance est une course entre l’offre et la demande. La production étant la superficie multipliée par le rendement, et la consommation la population multipliée par la consommation par habitant, l’évolution du ratio se décompose exactement — et non approximativement — en quatre termes. Période : {0}–{1}.'
+    },
+    'adv.supplyGrowth': { en: 'Supply growth', fr: 'Croissance de l’offre' },
+    'adv.demandGrowth': { en: 'Demand growth', fr: 'Croissance de la demande' },
+    'adv.netGap':       { en: 'Net (supply − demand)', fr: 'Net (offre − demande)' },
+    'adv.term':         { en: 'Term', fr: 'Terme' },
+    'adv.side':         { en: 'Side', fr: 'Côté' },
+    'adv.supply':       { en: 'Supply', fr: 'Offre' },
+    'adv.demand':       { en: 'Demand', fr: 'Demande' },
+    'adv.growthRate':   { en: 'Growth', fr: 'Croissance' },
+    'adv.contribution': { en: 'Share of movement', fr: 'Part du mouvement' },
+    'adv.termsCaption': { en: 'Annualised log growth of each term, and its share of total absolute movement.',
+                          fr: 'Croissance logarithmique annualisée de chaque terme et sa part du mouvement absolu total.' },
+    'adv.dominant':     { en: 'Largest single term: {0}, accounting for {1}% of all movement in the ratio.',
+                          fr: 'Terme dominant : {0}, représentant {1} % de l’ensemble du mouvement du ratio.' },
+    'adv.residual':     { en: 'Identity residual: {0} — the decomposition is exact, so this is the platform checking its own arithmetic.',
+                          fr: 'Résidu de l’identité : {0} — la décomposition est exacte ; il s’agit donc d’une vérification arithmétique de la plateforme.' },
+    'adv.window':       { en: 'Window', fr: 'Période' },
+    'adv.recent':       { en: 'recent', fr: 'récente' },
+    'adv.fullRecord':   { en: 'full record', fr: 'ensemble de la période' },
+    'adv.windowCaption': {
+      en: 'The diagnosis below uses the recent window. An endpoint decomposition over sixty years can be exactly right and still mislead: Benin was 15.9% self-sufficient in 1961 and 15.9% in 2024, which reads as "nothing changed" while concealing a rise to 64.6% by 2010 and a collapse back.',
+      fr: 'Le diagnostic ci-dessous utilise la période récente. Une décomposition entre deux extrémités sur soixante ans peut être exacte et néanmoins trompeuse : le Bénin était autosuffisant à 15,9 % en 1961 et à 15,9 % en 2024, ce qui donne l’impression que « rien n’a changé » tout en masquant une hausse à 64,6 % en 2010 puis un effondrement.'
+    },
+    'adv.divergent':    { en: 'The two windows disagree by enough to change the advice. Something changed regime; read the recent one.',
+                          fr: 'Les deux périodes divergent suffisamment pour modifier la recommandation. Un changement de régime s’est produit ; retenez la période récente.' },
+    'adv.raceTitle':    { en: 'The race: what adds to supply, what adds to demand',
+                          fr: 'La course : ce qui accroît l’offre, ce qui accroît la demande' },
+    'adv.raceCaption':  { en: 'Demand terms are shown negative, because they consume the same headroom supply creates.',
+                          fr: 'Les termes de demande sont affichés en négatif, car ils absorbent la marge que crée l’offre.' },
+    'adv.whyTitle':     { en: 'Why self-sufficiency has not been reached',
+                          fr: 'Pourquoi l’autosuffisance n’est pas atteinte' },
+    'adv.whyLede':      { en: 'Self-sufficiency stands at {0}% ({1}). Ranked causes, most severe first, each with the evidence that raised it and what follows from it.',
+                          fr: 'L’autosuffisance s’élève à {0} % ({1}). Causes classées, les plus graves d’abord, chacune accompagnée des données qui l’ont fait apparaître et de ses implications.' },
+    'sev.critical':     { en: 'critical', fr: 'critique' },
+    'sev.high':         { en: 'high', fr: 'élevé' },
+    'sev.medium':       { en: 'medium', fr: 'moyen' },
+    'sev.info':         { en: 'context', fr: 'contexte' },
+    'sev.good':         { en: 'favourable', fr: 'favorable' },
+    'adv.whatTitle':    { en: 'What it would take', fr: 'Ce qu’il faudrait' },
+    'adv.whatLede':     { en: 'First the arithmetic of what closes the gap, then the instruments that plausibly deliver it — each with the objection that belongs to it, because an instrument recommended without its caveat is not advice.',
+                          fr: 'D’abord l’arithmétique de ce qui comble l’écart, puis les instruments susceptibles d’y parvenir — chacun avec l’objection qui lui revient, car un instrument recommandé sans réserve n’est pas un conseil.' },
+    'adv.horizon':      { en: 'Horizon', fr: 'Horizon' },
+    'adv.requiredMult': { en: 'Production must rise by', fr: 'La production doit croître de' },
+    'adv.leastCostMix': { en: 'Least-cost route', fr: 'Voie de moindre coût' },
+    'adv.feasible':     { en: 'Reachable', fr: 'Atteignable' },
+    'adv.condCaption':  { en: 'From the Self-Sufficiency Condition module, under its stated agronomic ceilings.',
+                          fr: 'Issu du module Condition d’autosuffisance, sous ses plafonds agronomiques déclarés.' },
+    'adv.alreadyThere': { en: 'already self-sufficient', fr: 'déjà autosuffisant' },
+    'adv.noRoute':      { en: 'no route within the ceilings', fr: 'aucune voie dans les limites' },
+    'adv.yes':          { en: 'yes', fr: 'oui' },
+    'adv.no':           { en: 'no', fr: 'non' },
+    'adv.instruments':  { en: 'Instruments, and what is wrong with each',
+                          fr: 'Instruments, et ce qui pose problème dans chacun' },
+    'adv.instrument':   { en: 'Instrument', fr: 'Instrument' },
+    'adv.whyItHelps':   { en: 'Why it helps', fr: 'Pourquoi cela aide' },
+    'adv.caveat':       { en: 'Caveat', fr: 'Réserve' },
+    'adv.instrumentsCaption': { en: 'Selected by the diagnosis above, not offered as a menu. The caveats are not boilerplate: each is the reason the instrument fails where it fails.',
+                                fr: 'Sélectionnés par le diagnostic ci-dessus, et non proposés comme un menu. Les réserves ne sont pas de pure forme : chacune explique pourquoi l’instrument échoue là où il échoue.' },
+    'adv.whoTitle':     { en: 'Who has managed it, and how', fr: 'Qui y est parvenu, et comment' },
+    'adv.whoLede':      { en: 'A prescription is more credible when someone has already followed it. These are the countries that are self-sufficient today, and those whose ratio is improving fastest.',
+                          fr: 'Une recommandation est plus crédible lorsqu’un pays l’a déjà suivie. Voici les pays aujourd’hui autosuffisants, et ceux dont le ratio progresse le plus vite.' },
+    'adv.alreadySS':    { en: 'Self-sufficient today', fr: 'Autosuffisants aujourd’hui' },
+    'adv.improvingFastest': { en: 'Improving fastest', fr: 'Progression la plus rapide' },
+    'adv.yieldGrowth':  { en: 'Yield growth', fr: 'Croissance du rendement' },
+    'adv.areaGrowth':   { en: 'Area growth', fr: 'Croissance des superficies' },
+    'adv.ssrTrend':     { en: 'SSR trend', fr: 'Tendance du TAS' },
+    'adv.whoCaveat':    { en: 'Self-sufficiency is not the same as food security, and a small producer with a high ratio is not necessarily a model. Egypt is self-sufficient with irrigation the Sahel does not have; Guinea-Bissau is close to it at low yields and low incomes. Read the route, not only the ratio.',
+                          fr: 'L’autosuffisance n’équivaut pas à la sécurité alimentaire, et un petit producteur au ratio élevé n’est pas nécessairement un modèle. L’Égypte est autosuffisante grâce à une irrigation dont le Sahel ne dispose pas ; la Guinée-Bissau s’en approche avec de faibles rendements et de faibles revenus. Lisez la trajectoire, pas seulement le ratio.' },
+    'adv.dlBrief':      { en: 'Download this analysis (Markdown)',
+                          fr: 'Télécharger cette analyse (Markdown)' },
+
     'cond.title':     { en: 'Self-Sufficiency Condition', fr: 'Condition d’autosuffisance' },
     'cond.lede':      { en: 'what would have to be true, for every country and region, at 2030, 2035, 2045 and 2050',
                         fr: 'ce qui devrait être vrai, pour chaque pays et région, en 2030, 2035, 2045 et 2050' },
@@ -7345,6 +7433,488 @@ const RSACondition = (function () {
 if (typeof module !== 'undefined' && module.exports) { module.exports = RSACondition; }
 
 
+/* ===== rsa-advisor.js ====================================================== */
+/* rsa-advisor.js -- guided rice policy analysis.
+ *
+ * WHAT THIS IS, PLAINLY. This is a reasoning engine, not a language model. It
+ * does not generate prose from a statistical model of text; it decomposes the
+ * data with an exact identity, ranks what it finds against stated thresholds,
+ * and assembles the explanation from that. Every sentence it produces carries
+ * the numbers it came from, and the same country and window always give the
+ * same answer.
+ *
+ * That is a deliberate choice, not a limitation worked around. The platform is
+ * one self-contained file with no external requests, so there is no server to
+ * hold an API key and no key that could be shipped in a public page safely. But
+ * more importantly, a policy claim that cannot be traced to a number is not
+ * worth making, and a chatbot that is confidently wrong about Mali's yield
+ * trend would do real damage in this setting. What follows can be checked line
+ * by line against the Data Used tables.
+ *
+ * THE CENTRAL IDENTITY. Self-sufficiency is a race between supply and demand,
+ * and the decomposition is exact in logarithms rather than approximate:
+ *
+ *     P = A x Y                  production is area times yield
+ *     C = N x c                  consumption is population times per-capita use
+ *     SSR = P / C
+ *
+ *     ln(SSR1/SSR0) = [ln(A1/A0) + ln(Y1/Y0)] - [ln(N1/N0) + ln(c1/c0)]
+ *                      \___________________/     \___________________/
+ *                         supply growth              demand growth
+ *
+ * So a country loses self-sufficiency when population growth plus dietary
+ * change outruns area expansion plus yield improvement. Which of those four
+ * terms dominates is the whole of the diagnosis, and it differs sharply between
+ * countries: Nigeria's problem is not Senegal's problem.
+ */
+var RSAAdvisor = (function () {
+  'use strict';
+
+  const VERSION = '1.0.0';
+
+  /* Thresholds. Stated here rather than buried in the logic, because a reader
+   * who disagrees with one should be able to see it and say so. Annual rates in
+   * percent unless noted. */
+  const T = {
+    yieldStagnant: 1.0,      // below this, yield growth is not keeping up with anything
+    yieldStrong: 3.0,        // sustained growth at this rate doubles yield in a generation
+    popHigh: 2.5,            // roughly the sub-Saharan average
+    dietFast: 1.5,           // per-capita consumption growth this fast is a structural shift
+    areaFast: 3.0,           // area growth this fast usually means frontier expansion
+    idrHigh: 50,             // half of utilization imported
+    idrSevere: 75,
+    ssrTarget: 100,
+    reExportRatio: 1.15,     // imports > 115% of utilization implies unrecorded re-export
+    volatilityHigh: 25       // coefficient of variation of yield, percent
+  };
+
+  /* ------------------------------------------------------------ utilities */
+
+  function obs(series, years, y) {
+    const i = years.indexOf(y);
+    return i < 0 ? null : series[i];
+  }
+
+  /* First and last years in [from,to] where every named series is present, so
+   * the decomposition compares like with like rather than silently mixing a
+   * 1961 area with a 1985 population. */
+  function window_(bal, fields, from, to) {
+    let a = null, b = null;
+    for (let i = 0; i < bal.years.length; i++) {
+      const y = bal.years[i];
+      if (from != null && y < from) continue;
+      if (to != null && y > to) continue;
+      if (!fields.every(f => bal[f][i] != null && bal[f][i] > 0)) continue;
+      if (a == null) a = y;
+      b = y;
+    }
+    return (a != null && b != null && b > a) ? { from: a, to: b } : null;
+  }
+
+  const annual = (v1, v0, n) => (100 * (Math.pow(v1 / v0, 1 / n) - 1));
+
+  /* --------------------------------------------------- growth accounting */
+
+  /* The exact log decomposition described in the header. Returns each term as
+   * an annualised percentage, plus its share of total movement, so the caller
+   * can say "yield did most of the work" with a number behind it. */
+  function decompose(bal, opts) {
+    opts = opts || {};
+    const w = window_(bal, ['area', 'yield', 'population', 'consumption', 'production'],
+                      opts.from, opts.to);
+    if (!w) return { ok: false, reason: 'no year in this window has area, yield, population and consumption all present' };
+    const n = w.to - w.from;
+    const g = (f) => {
+      const v0 = obs(bal[f], bal.years, w.from), v1 = obs(bal[f], bal.years, w.to);
+      return { from: v0, to: v1, rate: annual(v1, v0, n), log: Math.log(v1 / v0) };
+    };
+    const A = g('area'), Y = g('yield'), N = g('population'), C = g('consumption'), P = g('production');
+    // Per-capita consumption is C/N. Consumption is in TONNES and population in
+    // persons, so the quotient is tonnes per person: multiply by 1000 to get the
+    // kg/capita this is labelled with. The growth rate is unaffected — it is a
+    // ratio — but the displayed levels are wrong by three orders of magnitude
+    // without this, which is exactly the kind of error a reader would catch and
+    // then rightly distrust everything else on the page.
+    const cpc0 = 1000 * C.from / N.from, cpc1 = 1000 * C.to / N.to;
+    const c = { from: cpc0, to: cpc1, rate: annual(cpc1, cpc0, n), log: Math.log(cpc1 / cpc0) };
+
+    const supplyLog = A.log + Y.log;
+    const demandLog = N.log + c.log;
+    const ssrLog = supplyLog - demandLog;
+    const total = Math.abs(A.log) + Math.abs(Y.log) + Math.abs(N.log) + Math.abs(c.log);
+    const share = x => total > 0 ? +(100 * Math.abs(x) / total).toFixed(1) : 0;
+
+    const terms = [
+      { key: 'area', label: 'Harvested area', side: 'supply', rate: +A.rate.toFixed(2),
+        log: A.log, share: share(A.log), from: A.from, to: A.to, unit: 'ha' },
+      { key: 'yield', label: 'Yield', side: 'supply', rate: +Y.rate.toFixed(2),
+        log: Y.log, share: share(Y.log), from: Y.from, to: Y.to, unit: 'kg/ha' },
+      { key: 'population', label: 'Population', side: 'demand', rate: +N.rate.toFixed(2),
+        log: N.log, share: share(N.log), from: N.from, to: N.to, unit: 'persons' },
+      { key: 'diet', label: 'Consumption per person', side: 'demand', rate: +c.rate.toFixed(2),
+        log: c.log, share: share(c.log), from: c.from, to: c.to, unit: 'kg/capita' }
+    ];
+    terms.sort((x, y2) => y2.share - x.share);
+
+    return {
+      ok: true, window: w, years: n,
+      supplyGrowth: +(100 * (Math.exp(supplyLog / n) - 1)).toFixed(2),
+      demandGrowth: +(100 * (Math.exp(demandLog / n) - 1)).toFixed(2),
+      ssrGrowth: +(100 * (Math.exp(ssrLog / n) - 1)).toFixed(2),
+      gap: +(100 * (Math.exp(supplyLog / n) - 1) - 100 * (Math.exp(demandLog / n) - 1)).toFixed(2),
+      terms: terms,
+      dominant: terms[0],
+      binding: terms.filter(t => t.side === 'demand').sort((a, b) => b.log - a.log)[0],
+      identity: 'ln(SSR1/SSR0) = [ln(A1/A0) + ln(Y1/Y0)] - [ln(N1/N0) + ln(c1/c0)]',
+      // The identity is exact, so this residual is a check on the arithmetic,
+      // not a modelling error term. It should be zero to machine precision.
+      residual: +(ssrLog - (P.log - C.log)).toFixed(12)
+    };
+  }
+
+  /* An endpoint decomposition over the whole record can be exactly right and
+   * still useless. Benin was 15.9% self-sufficient in 1961 and 15.9% in 2024,
+   * so the full-record decomposition reports supply and demand growing at
+   * identical rates and a net movement of zero -- while concealing that the
+   * ratio rose to 64.6% by 2010 and collapsed again. The round trip IS the
+   * story, and a single pair of endpoints cannot show it.
+   *
+   * So the platform reports the recent window as the headline, because that is
+   * the one a policy horizon acts on, and the full record beside it, and says
+   * when the two disagree. */
+  const RECENT_YEARS = 20;
+
+  function decomposePeriods(bal, opts) {
+    opts = opts || {};
+    const full = decompose(bal, opts);
+    if (!full.ok) return { ok: false, reason: full.reason };
+    const span = full.window.to - full.window.from;
+    const out = { ok: true, full: full, recent: null, headline: full, divergent: false };
+    if (span > RECENT_YEARS + 5) {
+      const recent = decompose(bal, { from: full.window.to - RECENT_YEARS, to: opts.to });
+      if (recent.ok) {
+        out.recent = recent;
+        out.headline = recent;
+        // "Disagree" means they point opposite ways, or differ by more than a
+        // percentage point a year -- enough to change what one would advise.
+        out.divergent = (Math.sign(recent.gap) !== Math.sign(full.gap)) ||
+                        Math.abs(recent.gap - full.gap) > 1.0;
+      }
+    }
+    return out;
+  }
+
+  /* ------------------------------------------------------------ diagnosis */
+
+  /* Why is this country not self-sufficient? Returns ranked causes, each with
+   * the evidence that raised it and what follows from it. */
+  function diagnose(bal, opts) {
+    opts = opts || {};
+    const I = RSAIndicators;
+    // Diagnose on the RECENT window: a cause that stopped operating in 1985 is
+    // not a cause of today's shortfall.
+    const per = decomposePeriods(bal, opts);
+    const d = per.ok ? per.headline : { ok: false };
+    const causes = [];
+    const ssrS = I.compute('ssr', bal), idrS = I.compute('idr', bal);
+    const last = (s) => { for (let i = s.values.length - 1; i >= 0; i--) if (s.values[i] != null) return { year: s.years[i], value: s.values[i] }; return null; };
+    const ssr = last(ssrS), idr = last(idrS);
+
+    if (!ssr) return { ok: false, reason: 'no self-sufficiency ratio can be computed for this selection' };
+
+    const add = (id, severity, title, finding, implication, evidence) =>
+      causes.push({ id: id, severity: severity, title: title, finding: finding,
+                    implication: implication, evidence: evidence });
+
+    if (ssr.value >= T.ssrTarget) {
+      add('already', 'good', 'Already self-sufficient',
+        'Self-sufficiency stands at ' + ssr.value.toFixed(1) + '% in ' + ssr.year + '.',
+        'The question here is not how to reach self-sufficiency but how to hold it: check whether ' +
+        'supply growth still exceeds demand growth, because a surplus narrows silently.',
+        { ssr: ssr });
+    }
+
+    if (d.ok) {
+      const yieldT = d.terms.filter(t => t.key === 'yield')[0];
+      const areaT = d.terms.filter(t => t.key === 'area')[0];
+      const popT = d.terms.filter(t => t.key === 'population')[0];
+      const dietT = d.terms.filter(t => t.key === 'diet')[0];
+
+      if (d.gap < 0) {
+        add('losing-race', 'critical', 'Demand is outgrowing supply',
+          'Over ' + d.window.from + '–' + d.window.to + ' supply grew ' + d.supplyGrowth +
+          '% a year and demand ' + d.demandGrowth + '%, so self-sufficiency fell ' +
+          Math.abs(d.ssrGrowth).toFixed(2) + '% a year.',
+          'No amount of trade policy closes a gap that is being widened by the production ' +
+          'identity itself. Supply growth has to exceed ' + d.demandGrowth +
+          '% a year simply to stop the ratio falling further.',
+          { supply: d.supplyGrowth, demand: d.demandGrowth, dominant: d.dominant.label });
+      }
+
+      if (yieldT.rate < T.yieldStagnant) {
+        add('yield-stagnation', 'critical', 'Yield is stagnant',
+          'Yield grew ' + yieldT.rate + '% a year over ' + d.window.from + '–' + d.window.to +
+          ', from ' + Math.round(yieldT.from) + ' to ' + Math.round(yieldT.to) + ' kg/ha.',
+          'Yield is the only lever that raises output without competing for land, and it is the ' +
+          'one not being pulled. Where area is also constrained this is the binding cause.',
+          { rate: yieldT.rate, from: yieldT.from, to: yieldT.to });
+      } else if (yieldT.rate >= T.yieldStrong) {
+        add('yield-strong', 'good', 'Yield is improving quickly',
+          'Yield grew ' + yieldT.rate + '% a year, reaching ' + Math.round(yieldT.to) + ' kg/ha.',
+          'The productivity route is already working. The question is whether it can be sustained ' +
+          'as the easy gains are exhausted, and whether it is fast enough against demand.',
+          { rate: yieldT.rate });
+      }
+
+      if (popT.rate >= T.popHigh) {
+        add('demography', 'high', 'Demographic pressure',
+          'Population grew ' + popT.rate + '% a year, adding ' +
+          Math.round((popT.to - popT.from) / 1e6) + ' million people over the period.',
+          'This term is essentially fixed over a policy horizon: the population of 2040 is already ' +
+          'born or determined. It sets the floor that supply growth has to clear, and it is why ' +
+          'per-hectare productivity matters more here than in slower-growing regions.',
+          { rate: popT.rate, added: popT.to - popT.from });
+      }
+
+      if (dietT.rate >= T.dietFast) {
+        add('diet-shift', 'high', 'Rice is displacing other staples',
+          'Consumption per person rose ' + dietT.rate + '% a year, from ' +
+          dietT.from.toFixed(1) + ' to ' + dietT.to.toFixed(1) + ' kg.',
+          'Urbanisation and the convenience of rice relative to coarse grains are moving the diet. ' +
+          'This is a demand-side driver that agricultural policy alone cannot reach, and it means ' +
+          'the self-sufficiency target itself is a moving one.',
+          { rate: dietT.rate, from: dietT.from, to: dietT.to });
+      } else if (dietT.rate < 0) {
+        add('diet-falling', 'info', 'Per-capita rice consumption is falling',
+          'Consumption per person fell ' + Math.abs(dietT.rate) + '% a year, to ' +
+          dietT.to.toFixed(1) + ' kg.',
+          'Demand pressure is easing on the per-person margin, so the demand term is carried by ' +
+          'population alone. Check whether this is real dietary change or an artefact of the ' +
+          'apparent-consumption residual.',
+          { rate: dietT.rate });
+      }
+
+      if (areaT.rate >= T.areaFast) {
+        add('area-led', 'medium', 'Growth is coming from land, not productivity',
+          'Area grew ' + areaT.rate + '% a year against yield at ' + yieldT.rate + '%.',
+          'Expansion-led growth runs into a frontier and often into forest or rangeland. It buys ' +
+          'time rather than solving the problem, and the environmental cost is not in these numbers.',
+          { area: areaT.rate, yield: yieldT.rate });
+      }
+    }
+
+    if (idr && idr.value >= T.idrSevere) {
+      add('import-dependence', 'critical', 'Severe import dependence',
+        'Imports cover ' + idr.value.toFixed(1) + '% of utilization (' + idr.year + ').',
+        'At this level the rice bill is a macroeconomic exposure, not just an agricultural one: ' +
+        'a world price shock transmits straight to the consumer price and the current account.',
+        { idr: idr });
+    } else if (idr && idr.value >= T.idrHigh) {
+      add('import-dependence', 'high', 'High import dependence',
+        'Imports cover ' + idr.value.toFixed(1) + '% of utilization (' + idr.year + ').',
+        'More than half of the rice eaten is bought abroad, so domestic price is set largely ' +
+        'offshore and the consumer is exposed to freight and exchange-rate movements.',
+        { idr: idr });
+    }
+
+    if (idr && idr.value > 100 * T.reExportRatio) {
+      add('re-export', 'high', 'Apparent consumption is inflated by re-export',
+        'Import dependency is ' + idr.value.toFixed(1) + '%, above 100%, meaning recorded imports ' +
+        'exceed recorded utilization.',
+        'Rice is entering, being counted, and leaving again without being recorded as an export. ' +
+        'Self-sufficiency computed on apparent consumption is therefore understated, and the ' +
+        'balance-sheet SSR is the more meaningful figure for this country.',
+        { idr: idr });
+    }
+
+    // Yield volatility: a mean that hides swings is a different policy problem.
+    const yv = bal.yield.filter(v => v != null && v > 0);
+    if (yv.length > 8) {
+      const recent = yv.slice(-15);
+      const m = recent.reduce((a, b) => a + b, 0) / recent.length;
+      const sd = Math.sqrt(recent.reduce((a, b) => a + (b - m) * (b - m), 0) / (recent.length - 1));
+      const cv = 100 * sd / m;
+      if (cv >= T.volatilityHigh) {
+        add('volatility', 'medium', 'Yields are highly variable',
+          'The coefficient of variation of yield over the last ' + recent.length + ' years is ' +
+          cv.toFixed(1) + '%.',
+          'Rainfed dependence shows up here. Variability of this size means the average conceals ' +
+          'years of shortfall, and it raises the return to irrigation and to water control ' +
+          'relative to varietal gains alone.',
+          { cv: +cv.toFixed(1) });
+      }
+    }
+
+    if (per.ok && per.divergent && per.recent) {
+      add('regime-change', 'high', 'The recent record differs from the long one',
+        'Over ' + per.full.window.from + '–' + per.full.window.to + ' the net supply-demand gap was ' +
+        per.full.gap.toFixed(2) + ' points a year; over ' + per.recent.window.from + '–' +
+        per.recent.window.to + ' it was ' + per.recent.gap.toFixed(2) + '.',
+        'Something changed. Reading the full record alone would give the wrong advice here: the ' +
+        'diagnosis above uses the recent window, because that is the regime a policy horizon acts on.',
+        { fullGap: per.full.gap, recentGap: per.recent.gap });
+    }
+
+    const order = { critical: 0, high: 1, medium: 2, info: 3, good: 4 };
+    causes.sort((a, b) => order[a.severity] - order[b.severity]);
+    return { ok: true, ssr: ssr, idr: idr, decomposition: d, periods: per, causes: causes,
+             selection: bal.label, db: bal.db };
+  }
+
+  /* ---------------------------------------------------------- prescription */
+
+  /* What has to happen. Grounded in the condition module rather than invented:
+   * the arithmetic of what closes the gap, then the instruments that plausibly
+   * deliver it, with the caveats that belong to each. */
+  const INSTRUMENTS = {
+    yield: [
+      { id: 'irrigation', label: 'Water control and irrigation',
+        why: 'Raises yield and cuts the year-to-year variability that rainfed systems carry. The ' +
+             'single largest yield gap in West Africa is between rainfed lowland and irrigated systems.',
+        caveat: 'Capital-intensive and slow: schemes take years to build and longer to run well. ' +
+                'Maintenance and water-user governance decide whether the gain persists.' },
+      { id: 'varieties', label: 'Improved and adapted varieties',
+        why: 'Cheapest per hectare of the productivity levers, and adoption can move quickly where ' +
+             'seed systems function.',
+        caveat: 'Bounded by adoption: gains apply only to the area actually planted with them, so ' +
+                'the ceiling is the seed system, not the genetics.' },
+      { id: 'fertiliser', label: 'Soil fertility and fertiliser access',
+        why: 'Yield response to nitrogen is steep on depleted soils, so the first increments are ' +
+             'the cheapest output a system can buy.',
+        caveat: 'Import-dependent and price-exposed; subsidy programmes are fiscally heavy and ' +
+                'leak. Response depends on water, so it pairs with irrigation rather than substituting.' },
+      { id: 'extension', label: 'Agronomy and extension',
+        why: 'Much of the measured yield gap is management, not technology: transplanting, spacing, ' +
+             'weeding and timing.',
+        caveat: 'Slow, staff-intensive, and hard to attribute. Rarely produces a visible result ' +
+                'within one political cycle.' }
+    ],
+    area: [
+      { id: 'lowland', label: 'Developing inland valleys and lowlands',
+        why: 'Large areas of suitable lowland remain undeveloped in West Africa, and they carry ' +
+             'better water security than upland rice.',
+        caveat: 'Land tenure disputes are the usual binding constraint, not engineering.' },
+      { id: 'doubleCrop', label: 'Second cropping where water allows',
+        why: 'Raises harvested area without new land, using infrastructure that already exists.',
+        caveat: 'Only where irrigation is reliable; otherwise it converts one good harvest into ' +
+                'two poor ones.' }
+    ],
+    postHarvest: [
+      { id: 'milling', label: 'Milling quality and post-harvest losses',
+        why: 'Raises the edible output of the same paddy and the price local rice can command. ' +
+             'Broken grain from poor milling is why imported rice is often preferred.',
+        caveat: 'Does not raise paddy production, so it does not appear in yield statistics at all ' +
+                'while still improving the balance sheet.' }
+    ],
+    demand: [
+      { id: 'quality', label: 'Competing on quality, not only on volume',
+        why: 'Consumer preference for imported rice is partly about grain quality and consistency. ' +
+             'Import substitution fails if the domestic product is not what people want to eat.',
+        caveat: 'Requires the milling and grading investments above; a tariff without them raises ' +
+                'the price of the staple without shifting demand.' }
+    ],
+    trade: [
+      { id: 'tariff', label: 'Import tariffs and levies',
+        why: 'Raises the domestic price, which transmits to producer incentives.',
+        caveat: 'Rice is a staple: the burden falls hardest on poor urban consumers, and porous ' +
+                'borders defeat high tariffs — this is precisely the Benin–Nigeria case. Treat as ' +
+                'a revenue instrument with production side-effects, not a production instrument.' },
+      { id: 'reserves', label: 'Strategic reserves and price stabilisation',
+        why: 'Buffers the consumer against world price shocks, which is what a 2008-type event ' +
+             'actually does to a high-IDR country.',
+        caveat: 'Expensive to hold, easily politicised, and prone to loss in storage.' }
+    ]
+  };
+
+  function prescribe(bal, opts) {
+    opts = opts || {};
+    const dg = diagnose(bal, opts);
+    if (!dg.ok) return dg;
+    const picked = [], seen = {};
+    const take = (group, reason) => INSTRUMENTS[group].forEach(x => {
+      if (seen[x.id]) return;
+      seen[x.id] = 1;
+      picked.push(Object.assign({ group: group, becauseOf: reason }, x));
+    });
+
+    const has = id => dg.causes.some(c => c.id === id);
+    if (has('yield-stagnation') || has('losing-race')) take('yield', 'yield-stagnation');
+    if (has('volatility')) take('yield', 'volatility');
+    if (has('area-led')) take('yield', 'area-led');
+    if (has('demography') || has('diet-shift')) { take('yield', 'demand-pressure'); take('area', 'demand-pressure'); }
+    if (has('import-dependence')) { take('postHarvest', 'import-dependence'); take('demand', 'import-dependence'); }
+    if (has('re-export')) take('trade', 're-export');
+    if (has('import-dependence')) take('trade', 'import-dependence');
+    if (!picked.length) { take('yield', 'general'); take('postHarvest', 'general'); }
+
+    // What the arithmetic actually requires, from the condition module.
+    let condition = null;
+    try {
+      condition = RSACondition.forSelection(bal.selection,
+        { dbKey: bal.dbKey, basis: bal.basis });
+    } catch (e) { condition = null; }
+
+    return { ok: true, diagnosis: dg, instruments: picked, condition: condition };
+  }
+
+  /* --------------------------------------------------------------- peers */
+
+  /* Countries that are self-sufficient, or that closed a gap, and how they did
+   * it. Prescription is more credible when someone has already done it. */
+  function peers(bal, opts) {
+    opts = opts || {};
+    const I = RSAIndicators;
+    const out = [];
+    RSA.countries().forEach(c => {
+      if (bal.members.length === 1 && c.iso3 === bal.members[0]) return;
+      let b;
+      try { b = RSA.balance(bal.dbKey, { kind: 'country', id: c.iso3 }, { basis: bal.basis }); }
+      catch (e) { return; }
+      const s = I.compute('ssr', b).values;
+      let lastV = null, lastY = null;
+      for (let i = s.length - 1; i >= 0; i--) if (s[i] != null) { lastV = s[i]; lastY = b.years[i]; break; }
+      if (lastV == null) return;
+      const d = decompose(b, opts);
+      out.push({ iso3: c.iso3, name: c.name, ssr: lastV, year: lastY,
+                 yieldGrowth: d.ok ? d.terms.filter(t => t.key === 'yield')[0].rate : null,
+                 areaGrowth: d.ok ? d.terms.filter(t => t.key === 'area')[0].rate : null,
+                 ssrTrend: d.ok ? d.ssrGrowth : null });
+    });
+    const selfSufficient = out.filter(x => x.ssr >= T.ssrTarget).sort((a, b) => b.ssr - a.ssr);
+    const improving = out.filter(x => x.ssrTrend != null && x.ssrTrend > 0)
+                         .sort((a, b) => b.ssrTrend - a.ssrTrend);
+    return { selfSufficient: selfSufficient.slice(0, 8), improving: improving.slice(0, 8), all: out };
+  }
+
+  /* ------------------------------------------------------------- questions */
+
+  /* The questions this section is built to answer, each mapped to what it needs
+   * so the UI can offer them rather than making the reader guess. */
+  const QUESTIONS = [
+    { id: 'drivers', label: 'What drives self-sufficiency here?' },
+    { id: 'why', label: 'Why is this country or region not self-sufficient?' },
+    { id: 'what', label: 'What would it take to get there?' },
+    { id: 'who', label: 'Who has succeeded, and how?' },
+    { id: 'risk', label: 'What would a price or supply shock do?' }
+  ];
+
+  return {
+    VERSION: VERSION,
+    THRESHOLDS: T,
+    INSTRUMENTS: INSTRUMENTS,
+    QUESTIONS: QUESTIONS,
+    RECENT_YEARS: RECENT_YEARS,
+    decompose: decompose,
+    decomposePeriods: decomposePeriods,
+    diagnose: diagnose,
+    prescribe: prescribe,
+    peers: peers
+  };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = RSAAdvisor;
+
+
 /* ===== rsa-vanoort.js ====================================================== */
 /* Rice Statistics for Africa -- the Van Oort et al. (2015) self-sufficiency model.
  *
@@ -10569,7 +11139,7 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
   // Tab ids only; labels come from the translation table at render time so a
   // language switch re-labels everything without a reload.
   const TABS = ['overview', 'map', 'profile', 'compare', 'forecast',
-                'scenarios', 'condition', 'crisis', 'westafrica', 'datused',
+                'scenarios', 'condition', 'advisor', 'crisis', 'westafrica', 'datused',
                 'sources', 'copilot', 'report'];
 
   // The 16 West African countries, for the van Oort model section.
@@ -14218,12 +14788,188 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
       : S.basis === 'asPublished' ? 'as published' : S.basis === 'milled' ? 'milled equivalent' : 'paddy equivalent';
   }
 
+  /* ------------------------------------------- guided policy analysis
+   *
+   * Answers the four questions a policy reader actually arrives with: what
+   * drives self-sufficiency, why this country is not there, what would get it
+   * there, and who has already managed it. Every answer is assembled from the
+   * decomposition, not written in advance, and carries its numbers.
+   */
+  function renderAdvisor() {
+    const el = $('#p-advisor');
+    el.innerHTML = '';
+    const b = bal();
+
+    el.appendChild(h('div', { class: 'section-h' }, [
+      h('h2', { text: T('adv.title') }),
+      h('p', { text: T('adv.lede') })
+    ]));
+
+    el.appendChild(note('info', T('adv.disclosure')));
+
+    const dg = RSAAdvisor.diagnose(b, { from: S.from, to: S.to });
+    if (!dg.ok) { el.appendChild(note('warning', dg.reason)); return; }
+    const d = dg.decomposition;
+
+    /* ---- 1. Drivers: the exact decomposition ---- */
+    if (d.ok) {
+      const kids = [
+        h('p', { text: T('adv.driversLede').replace('{0}', d.window.from).replace('{1}', d.window.to) }),
+        h('p', { class: 'eq', text: d.identity }),
+        h('div', { class: 'kpis' }, [
+          kpi(T('adv.supplyGrowth'), f(d.supplyGrowth, 2) + '%/yr', d.window.to, 'observed'),
+          kpi(T('adv.demandGrowth'), f(d.demandGrowth, 2) + '%/yr', d.window.to, 'observed'),
+          kpi(T('adv.netGap'), (d.gap >= 0 ? '+' : '') + f(d.gap, 2) + ' pp/yr', d.window.to,
+              d.gap >= 0 ? 'observed' : 'derived')
+        ]),
+        table(null,
+          [T('adv.term'), T('adv.side'), T('adv.growthRate'), T('adv.contribution'),
+           d.window.from, d.window.to],
+          d.terms.map(t => [
+            t.label,
+            t.side === 'supply' ? T('adv.supply') : T('adv.demand'),
+            f(t.rate, 2) + '%/yr',
+            f(t.share, 1) + '%',
+            f(t.from, t.unit === 'kg/capita' ? 1 : 0),
+            f(t.to, t.unit === 'kg/capita' ? 1 : 0)
+          ]),
+          { caption: T('adv.termsCaption') }),
+        h('p', { class: 'muted small', text: T('adv.dominant')
+          .replace('{0}', d.dominant.label).replace('{1}', f(d.dominant.share, 1)) })
+      ];
+
+      /* The full record beside the recent window. An endpoint decomposition
+       * over 63 years can be exactly right and still mislead: Benin was 15.9%
+       * self-sufficient in 1961 and 15.9% in 2024, which reads as "nothing
+       * changed" while hiding a rise to 64.6% in 2010 and a collapse back. */
+      const per = dg.periods;
+      if (per && per.ok && per.recent) {
+        kids.push(table(null,
+          [T('adv.window'), T('adv.supplyGrowth'), T('adv.demandGrowth'), T('adv.netGap')],
+          [[per.recent.window.from + '–' + per.recent.window.to + ' · ' + T('adv.recent'),
+            f(per.recent.supplyGrowth, 2) + '%', f(per.recent.demandGrowth, 2) + '%',
+            (per.recent.gap >= 0 ? '+' : '') + f(per.recent.gap, 2)],
+           [per.full.window.from + '–' + per.full.window.to + ' · ' + T('adv.fullRecord'),
+            f(per.full.supplyGrowth, 2) + '%', f(per.full.demandGrowth, 2) + '%',
+            (per.full.gap >= 0 ? '+' : '') + f(per.full.gap, 2)]],
+          { caption: T('adv.windowCaption') }));
+        if (per.divergent) kids.push(note('warning', T('adv.divergent')));
+      }
+      // The identity is exact; showing the residual is the platform checking itself.
+      kids.push(h('p', { class: 'muted small',
+        text: T('adv.residual').replace('{0}', d.residual.toExponential(1)) }));
+      el.appendChild(card(T('adv.driversTitle'), kids));
+
+      el.appendChild(figure(T('adv.raceTitle'), RSAFigs.bars({
+        title: T('adv.raceTitle'), unit: '%/yr',
+        rows: d.terms.map(t => ({ label: t.label + (t.side === 'demand' ? ' (−)' : ' (+)'),
+                                  value: t.side === 'demand' ? -t.rate : t.rate }))
+      }, { width: 620 }), T('adv.raceCaption')));
+    }
+
+    /* ---- 2. Why not self-sufficient ---- */
+    const SEV = { critical: 'warning', high: 'warning', medium: 'info', info: 'info', good: 'info' };
+    el.appendChild(card(T('adv.whyTitle'), [
+      h('p', { text: T('adv.whyLede').replace('{0}', f(dg.ssr.value, 1)).replace('{1}', dg.ssr.year) })
+    ].concat(dg.causes.map(c => h('div', { class: 'finding' }, [
+      h('h4', { text: c.title + ' · ' + T('sev.' + c.severity) }),
+      h('p', { text: c.finding }),
+      h('p', { class: 'muted', text: c.implication })
+    ])))));
+
+    /* ---- 3. What to do ---- */
+    const pr = RSAAdvisor.prescribe(b, { from: S.from, to: S.to });
+    if (pr.ok) {
+      const kids = [h('p', { text: T('adv.whatLede') })];
+      const cond = pr.condition;
+      if (cond && cond.ok) {
+        const rows = cond.years.filter(y => y.available).map(y => {
+          const mix = y.routes.filter(r => r.id === 'mix')[0];
+          return [y.year,
+                  y.alreadySelfSufficient ? '—' : f(y.requiredMultiplier, 2) + '×',
+                  y.alreadySelfSufficient ? T('adv.alreadyThere')
+                    : (mix && mix.feasible ? mix.requirement : T('adv.noRoute')),
+                  y.alreadySelfSufficient ? '—' : (y.anyFeasible ? T('adv.yes') : T('adv.no'))];
+        });
+        if (rows.length) kids.push(table(null,
+          [T('adv.horizon'), T('adv.requiredMult'), T('adv.leastCostMix'), T('adv.feasible')],
+          rows, { caption: T('adv.condCaption') }));
+      }
+      kids.push(h('h4', { text: T('adv.instruments') }));
+      kids.push(table(null, [T('adv.instrument'), T('adv.whyItHelps'), T('adv.caveat')],
+        pr.instruments.map(i => [i.label, i.why, i.caveat]),
+        { caption: T('adv.instrumentsCaption') }));
+      el.appendChild(card(T('adv.whatTitle'), kids));
+    }
+
+    /* ---- 4. Who has succeeded ---- */
+    const pe = RSAAdvisor.peers(b, { from: S.from, to: S.to });
+    el.appendChild(card(T('adv.whoTitle'), [
+      h('p', { text: T('adv.whoLede') }),
+      h('h4', { text: T('adv.alreadySS') }),
+      table(null, [T('tbl.country'), 'SSR', T('adv.yieldGrowth'), T('adv.areaGrowth')],
+        pe.selfSufficient.map(p => [p.name, f(p.ssr, 1) + '%',
+          p.yieldGrowth == null ? '—' : f(p.yieldGrowth, 2) + '%/yr',
+          p.areaGrowth == null ? '—' : f(p.areaGrowth, 2) + '%/yr'])),
+      h('h4', { text: T('adv.improvingFastest') }),
+      table(null, [T('tbl.country'), 'SSR', T('adv.ssrTrend'), T('adv.yieldGrowth')],
+        pe.improving.map(p => [p.name, f(p.ssr, 1) + '%',
+          '+' + f(p.ssrTrend, 2) + '%/yr',
+          p.yieldGrowth == null ? '—' : f(p.yieldGrowth, 2) + '%/yr'])),
+      h('p', { class: 'muted small', text: T('adv.whoCaveat') })
+    ]));
+
+    el.appendChild(h('div', { class: 'controls' }, [
+      h('button', { class: 'primary', text: T('adv.dlBrief'), onclick: () => downloadAdvisorBrief(dg, pr, pe) })
+    ]));
+  }
+
+  function downloadAdvisorBrief(dg, pr, pe) {
+    const d = dg.decomposition;
+    const L = ['# Guided policy analysis — ' + dg.selection,
+               '', 'Rice Statistics for Africa v' + RSA_VERSION + ' · ' + dg.db +
+               ' · generated ' + new Date().toISOString().slice(0, 10), '',
+               'Produced by a deterministic reasoning engine, not a language model. Every figure',
+               'below is reproducible from the Data Used tables.', ''];
+    if (d.ok) {
+      L.push('## What drives self-sufficiency here', '',
+             'Over ' + d.window.from + '–' + d.window.to + ', on the exact identity',
+             '', '    ' + d.identity, '',
+             '- Supply grew ' + d.supplyGrowth + '% a year (area ' +
+               d.terms.filter(t => t.key === 'area')[0].rate + '%, yield ' +
+               d.terms.filter(t => t.key === 'yield')[0].rate + '%)',
+             '- Demand grew ' + d.demandGrowth + '% a year (population ' +
+               d.terms.filter(t => t.key === 'population')[0].rate + '%, diet ' +
+               d.terms.filter(t => t.key === 'diet')[0].rate + '%)',
+             '- Net: self-sufficiency moved ' + d.ssrGrowth + '% a year',
+             '- Largest single term: ' + d.dominant.label + ' (' + d.dominant.share + '% of movement)', '');
+    }
+    L.push('## Why', '');
+    dg.causes.forEach(c => L.push('### ' + c.title + ' (' + c.severity + ')', '',
+                                  c.finding, '', c.implication, ''));
+    if (pr && pr.ok) {
+      L.push('## What would it take', '');
+      pr.instruments.forEach(i => L.push('- **' + i.label + '** — ' + i.why +
+                                         ' _Caveat:_ ' + i.caveat));
+      L.push('');
+    }
+    if (pe && pe.selfSufficient.length) {
+      L.push('## Who has managed it', '');
+      pe.selfSufficient.forEach(p => L.push('- ' + p.name + ': SSR ' + p.ssr.toFixed(1) +
+        '%, yield growth ' + (p.yieldGrowth == null ? 'n/a' : p.yieldGrowth + '%/yr')));
+      L.push('');
+    }
+    L.push('---', '', 'Scenario and prescription content is a simulation under stated assumptions,',
+           'not a prediction and not a causal estimate of policy impact.');
+    downloadText(L.join('\n'), 'rsa-policy-analysis-' + slug(dg.selection) + '.md', 'text/markdown');
+  }
+
   /* ------------------------------------------------------------ plumbing */
 
   const RENDER = {
     overview: renderOverview, map: renderMap, profile: renderProfile, compare: renderCompare,
     forecast: renderForecast, scenarios: renderScenarios, condition: renderCondition,
-    crisis: renderCrisis,
+    advisor: renderAdvisor, crisis: renderCrisis,
     westafrica: renderWestAfrica, datused: renderDataUsed, sources: renderSources,
     copilot: renderCopilot, report: renderReport
   };

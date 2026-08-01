@@ -39,7 +39,7 @@
   // Tab ids only; labels come from the translation table at render time so a
   // language switch re-labels everything without a reload.
   const TABS = ['overview', 'map', 'profile', 'compare', 'forecast',
-                'scenarios', 'condition', 'crisis', 'westafrica', 'datused',
+                'scenarios', 'condition', 'advisor', 'crisis', 'westafrica', 'datused',
                 'sources', 'copilot', 'report'];
 
   // The 16 West African countries, for the van Oort model section.
@@ -3688,12 +3688,188 @@
       : S.basis === 'asPublished' ? 'as published' : S.basis === 'milled' ? 'milled equivalent' : 'paddy equivalent';
   }
 
+  /* ------------------------------------------- guided policy analysis
+   *
+   * Answers the four questions a policy reader actually arrives with: what
+   * drives self-sufficiency, why this country is not there, what would get it
+   * there, and who has already managed it. Every answer is assembled from the
+   * decomposition, not written in advance, and carries its numbers.
+   */
+  function renderAdvisor() {
+    const el = $('#p-advisor');
+    el.innerHTML = '';
+    const b = bal();
+
+    el.appendChild(h('div', { class: 'section-h' }, [
+      h('h2', { text: T('adv.title') }),
+      h('p', { text: T('adv.lede') })
+    ]));
+
+    el.appendChild(note('info', T('adv.disclosure')));
+
+    const dg = RSAAdvisor.diagnose(b, { from: S.from, to: S.to });
+    if (!dg.ok) { el.appendChild(note('warning', dg.reason)); return; }
+    const d = dg.decomposition;
+
+    /* ---- 1. Drivers: the exact decomposition ---- */
+    if (d.ok) {
+      const kids = [
+        h('p', { text: T('adv.driversLede').replace('{0}', d.window.from).replace('{1}', d.window.to) }),
+        h('p', { class: 'eq', text: d.identity }),
+        h('div', { class: 'kpis' }, [
+          kpi(T('adv.supplyGrowth'), f(d.supplyGrowth, 2) + '%/yr', d.window.to, 'observed'),
+          kpi(T('adv.demandGrowth'), f(d.demandGrowth, 2) + '%/yr', d.window.to, 'observed'),
+          kpi(T('adv.netGap'), (d.gap >= 0 ? '+' : '') + f(d.gap, 2) + ' pp/yr', d.window.to,
+              d.gap >= 0 ? 'observed' : 'derived')
+        ]),
+        table(null,
+          [T('adv.term'), T('adv.side'), T('adv.growthRate'), T('adv.contribution'),
+           d.window.from, d.window.to],
+          d.terms.map(t => [
+            t.label,
+            t.side === 'supply' ? T('adv.supply') : T('adv.demand'),
+            f(t.rate, 2) + '%/yr',
+            f(t.share, 1) + '%',
+            f(t.from, t.unit === 'kg/capita' ? 1 : 0),
+            f(t.to, t.unit === 'kg/capita' ? 1 : 0)
+          ]),
+          { caption: T('adv.termsCaption') }),
+        h('p', { class: 'muted small', text: T('adv.dominant')
+          .replace('{0}', d.dominant.label).replace('{1}', f(d.dominant.share, 1)) })
+      ];
+
+      /* The full record beside the recent window. An endpoint decomposition
+       * over 63 years can be exactly right and still mislead: Benin was 15.9%
+       * self-sufficient in 1961 and 15.9% in 2024, which reads as "nothing
+       * changed" while hiding a rise to 64.6% in 2010 and a collapse back. */
+      const per = dg.periods;
+      if (per && per.ok && per.recent) {
+        kids.push(table(null,
+          [T('adv.window'), T('adv.supplyGrowth'), T('adv.demandGrowth'), T('adv.netGap')],
+          [[per.recent.window.from + '–' + per.recent.window.to + ' · ' + T('adv.recent'),
+            f(per.recent.supplyGrowth, 2) + '%', f(per.recent.demandGrowth, 2) + '%',
+            (per.recent.gap >= 0 ? '+' : '') + f(per.recent.gap, 2)],
+           [per.full.window.from + '–' + per.full.window.to + ' · ' + T('adv.fullRecord'),
+            f(per.full.supplyGrowth, 2) + '%', f(per.full.demandGrowth, 2) + '%',
+            (per.full.gap >= 0 ? '+' : '') + f(per.full.gap, 2)]],
+          { caption: T('adv.windowCaption') }));
+        if (per.divergent) kids.push(note('warning', T('adv.divergent')));
+      }
+      // The identity is exact; showing the residual is the platform checking itself.
+      kids.push(h('p', { class: 'muted small',
+        text: T('adv.residual').replace('{0}', d.residual.toExponential(1)) }));
+      el.appendChild(card(T('adv.driversTitle'), kids));
+
+      el.appendChild(figure(T('adv.raceTitle'), RSAFigs.bars({
+        title: T('adv.raceTitle'), unit: '%/yr',
+        rows: d.terms.map(t => ({ label: t.label + (t.side === 'demand' ? ' (−)' : ' (+)'),
+                                  value: t.side === 'demand' ? -t.rate : t.rate }))
+      }, { width: 620 }), T('adv.raceCaption')));
+    }
+
+    /* ---- 2. Why not self-sufficient ---- */
+    const SEV = { critical: 'warning', high: 'warning', medium: 'info', info: 'info', good: 'info' };
+    el.appendChild(card(T('adv.whyTitle'), [
+      h('p', { text: T('adv.whyLede').replace('{0}', f(dg.ssr.value, 1)).replace('{1}', dg.ssr.year) })
+    ].concat(dg.causes.map(c => h('div', { class: 'finding' }, [
+      h('h4', { text: c.title + ' · ' + T('sev.' + c.severity) }),
+      h('p', { text: c.finding }),
+      h('p', { class: 'muted', text: c.implication })
+    ])))));
+
+    /* ---- 3. What to do ---- */
+    const pr = RSAAdvisor.prescribe(b, { from: S.from, to: S.to });
+    if (pr.ok) {
+      const kids = [h('p', { text: T('adv.whatLede') })];
+      const cond = pr.condition;
+      if (cond && cond.ok) {
+        const rows = cond.years.filter(y => y.available).map(y => {
+          const mix = y.routes.filter(r => r.id === 'mix')[0];
+          return [y.year,
+                  y.alreadySelfSufficient ? '—' : f(y.requiredMultiplier, 2) + '×',
+                  y.alreadySelfSufficient ? T('adv.alreadyThere')
+                    : (mix && mix.feasible ? mix.requirement : T('adv.noRoute')),
+                  y.alreadySelfSufficient ? '—' : (y.anyFeasible ? T('adv.yes') : T('adv.no'))];
+        });
+        if (rows.length) kids.push(table(null,
+          [T('adv.horizon'), T('adv.requiredMult'), T('adv.leastCostMix'), T('adv.feasible')],
+          rows, { caption: T('adv.condCaption') }));
+      }
+      kids.push(h('h4', { text: T('adv.instruments') }));
+      kids.push(table(null, [T('adv.instrument'), T('adv.whyItHelps'), T('adv.caveat')],
+        pr.instruments.map(i => [i.label, i.why, i.caveat]),
+        { caption: T('adv.instrumentsCaption') }));
+      el.appendChild(card(T('adv.whatTitle'), kids));
+    }
+
+    /* ---- 4. Who has succeeded ---- */
+    const pe = RSAAdvisor.peers(b, { from: S.from, to: S.to });
+    el.appendChild(card(T('adv.whoTitle'), [
+      h('p', { text: T('adv.whoLede') }),
+      h('h4', { text: T('adv.alreadySS') }),
+      table(null, [T('tbl.country'), 'SSR', T('adv.yieldGrowth'), T('adv.areaGrowth')],
+        pe.selfSufficient.map(p => [p.name, f(p.ssr, 1) + '%',
+          p.yieldGrowth == null ? '—' : f(p.yieldGrowth, 2) + '%/yr',
+          p.areaGrowth == null ? '—' : f(p.areaGrowth, 2) + '%/yr'])),
+      h('h4', { text: T('adv.improvingFastest') }),
+      table(null, [T('tbl.country'), 'SSR', T('adv.ssrTrend'), T('adv.yieldGrowth')],
+        pe.improving.map(p => [p.name, f(p.ssr, 1) + '%',
+          '+' + f(p.ssrTrend, 2) + '%/yr',
+          p.yieldGrowth == null ? '—' : f(p.yieldGrowth, 2) + '%/yr'])),
+      h('p', { class: 'muted small', text: T('adv.whoCaveat') })
+    ]));
+
+    el.appendChild(h('div', { class: 'controls' }, [
+      h('button', { class: 'primary', text: T('adv.dlBrief'), onclick: () => downloadAdvisorBrief(dg, pr, pe) })
+    ]));
+  }
+
+  function downloadAdvisorBrief(dg, pr, pe) {
+    const d = dg.decomposition;
+    const L = ['# Guided policy analysis — ' + dg.selection,
+               '', 'Rice Statistics for Africa v' + RSA_VERSION + ' · ' + dg.db +
+               ' · generated ' + new Date().toISOString().slice(0, 10), '',
+               'Produced by a deterministic reasoning engine, not a language model. Every figure',
+               'below is reproducible from the Data Used tables.', ''];
+    if (d.ok) {
+      L.push('## What drives self-sufficiency here', '',
+             'Over ' + d.window.from + '–' + d.window.to + ', on the exact identity',
+             '', '    ' + d.identity, '',
+             '- Supply grew ' + d.supplyGrowth + '% a year (area ' +
+               d.terms.filter(t => t.key === 'area')[0].rate + '%, yield ' +
+               d.terms.filter(t => t.key === 'yield')[0].rate + '%)',
+             '- Demand grew ' + d.demandGrowth + '% a year (population ' +
+               d.terms.filter(t => t.key === 'population')[0].rate + '%, diet ' +
+               d.terms.filter(t => t.key === 'diet')[0].rate + '%)',
+             '- Net: self-sufficiency moved ' + d.ssrGrowth + '% a year',
+             '- Largest single term: ' + d.dominant.label + ' (' + d.dominant.share + '% of movement)', '');
+    }
+    L.push('## Why', '');
+    dg.causes.forEach(c => L.push('### ' + c.title + ' (' + c.severity + ')', '',
+                                  c.finding, '', c.implication, ''));
+    if (pr && pr.ok) {
+      L.push('## What would it take', '');
+      pr.instruments.forEach(i => L.push('- **' + i.label + '** — ' + i.why +
+                                         ' _Caveat:_ ' + i.caveat));
+      L.push('');
+    }
+    if (pe && pe.selfSufficient.length) {
+      L.push('## Who has managed it', '');
+      pe.selfSufficient.forEach(p => L.push('- ' + p.name + ': SSR ' + p.ssr.toFixed(1) +
+        '%, yield growth ' + (p.yieldGrowth == null ? 'n/a' : p.yieldGrowth + '%/yr')));
+      L.push('');
+    }
+    L.push('---', '', 'Scenario and prescription content is a simulation under stated assumptions,',
+           'not a prediction and not a causal estimate of policy impact.');
+    downloadText(L.join('\n'), 'rsa-policy-analysis-' + slug(dg.selection) + '.md', 'text/markdown');
+  }
+
   /* ------------------------------------------------------------ plumbing */
 
   const RENDER = {
     overview: renderOverview, map: renderMap, profile: renderProfile, compare: renderCompare,
     forecast: renderForecast, scenarios: renderScenarios, condition: renderCondition,
-    crisis: renderCrisis,
+    advisor: renderAdvisor, crisis: renderCrisis,
     westafrica: renderWestAfrica, datused: renderDataUsed, sources: renderSources,
     copilot: renderCopilot, report: renderReport
   };

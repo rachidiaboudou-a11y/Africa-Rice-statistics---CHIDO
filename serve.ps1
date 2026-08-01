@@ -1,4 +1,4 @@
-# Static dev server for Rice Statistics for Africa.
+﻿# Static dev server for Rice Statistics for Africa.
 #
 # Same approach as the GPIF Workbench server: HttpListener from the .NET base
 # library, so there is no toolchain to install and binding to "localhost"
@@ -24,7 +24,7 @@ $MIME = @{
 }
 
 $sources = @("src\shell.html","src\rsa-i18n.js","src\rsa-validate.js","src\rsa-core.js","src\rsa-indicators.js","src\rsa-tsa.js",
-             "src\rsa-scenarios.js","src\rsa-policy.js","src\rsa-crisis.js","src\rsa-condition.js",
+             "src\rsa-scenarios.js","src\rsa-policy.js","src\rsa-crisis.js","src\rsa-condition.js","src\rsa-advisor.js",
              "src\rsa-vanoort.js","src\rsa-datadict.js","src\rsa-figs.js","src\rsa-report.js",
              "src\rsa-app.js")
 
@@ -98,3 +98,4 @@ while ($listener.IsListening) {
   }
   Write-Output ("{0} {1} {2}" -f $status, $req.HttpMethod, $req.Url.AbsolutePath)
 }
+

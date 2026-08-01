@@ -383,7 +383,7 @@ footer p { margin: 4px 0; }
 </footer>
 
 <script>
-/* Rice Statistics for Africa -- bundled 2026-08-01 17:03:29 UTC */
+/* Rice Statistics for Africa -- bundled 2026-08-01 17:13:21 UTC */
 /* ===== rsa-i18n.js ========================================================= */
 /* Rice Statistics for Africa -- internationalisation (English / French).
  *
@@ -591,7 +591,8 @@ const RSAi18n = (function () {
                        fr: 'Afrique (tous les pays déclarants)' },
     'sel.ssa':       { en: 'Sub-Saharan Africa (SSA)',
                        fr: 'Afrique subsaharienne (ASS)' },
-    'unit.kgOnly':   { en: 'kg', fr: 'kg' },
+    'unit.kgOnly':    { en: 'kg', fr: 'kg' },
+    'unit.capitaDay': { en: 'capita/day', fr: 'habitant/jour' },
     'profile.noFbs': { en: 'no food balance sheet is published for this country',
                        fr: 'aucun bilan alimentaire n’est publié pour ce pays' },
     'profile.cpcInflated': {
@@ -3240,6 +3241,45 @@ const RSAIndicators = (function () {
     return (key && RSAi18n.has(key)) ? RSAi18n.t(key) : unit;
   }
 
+  /* THE unit formatter. Every indicator value displayed anywhere goes through
+   * this, so a unit can be wrong in one place only by being wrong everywhere.
+   *
+   * It lives here, beside the unit definitions, rather than in the view layer,
+   * because each display site used to carry its own ad-hoc ternary and each
+   * could therefore be wrong in its own way: the country profile formatted
+   * harvested area with the TONNES helper, so 128,501 hectares rendered as
+   * "129 kt", while the map ranking table and the map tooltip printed bare
+   * numbers with no unit at all. */
+  function num(x, dp) {
+    if (typeof RSAi18n !== 'undefined' && RSAi18n.num) return RSAi18n.num(x, dp);
+    return Number(x).toFixed(dp);
+  }
+  function scaled(x, units) {
+    const a = Math.abs(x);
+    if (a >= 1e6) return (x / 1e6).toFixed(2) + ' ' + units[2];
+    if (a >= 1e3) return (x / 1e3).toFixed(0) + ' ' + units[1];
+    return Math.round(x) + ' ' + units[0];
+  }
+  function format(value, unit, long) {
+    if (value == null || !isFinite(value)) return '—';
+    switch (unit) {
+      case 't':               return scaled(value, ['t', 'kt', 'Mt']);
+      case 'ha':              return scaled(value, ['ha', 'kha', 'Mha']);
+      case 'persons':         return scaled(value, ['', 'k', 'M']).trim();
+      case '%':               return num(value, 1) + '%';
+      case 'kg/ha':           return num(value, 0) + ' ' + unitLabel('kg/ha');
+      case 'kg/capita':       return num(value, 1) + ' ' + (long ? unitLabel('kg/capita') : 'kg');
+      case 'kcal/capita/day': return num(value, 0) + ' kcal';
+      case 'ratio':           return num(value, 2);
+      case 'index (-1 to 1)': return num(value, 3);
+      case 'ha/1000 capita':  return num(value, 1) + ' ha/1000';
+      case '1000 USD':        return scaled(value * 1000, ['USD', 'k USD', 'M USD']);
+      case 'USD/t':           return '$' + num(value, 0) + '/t';
+      case 'USD/capita':      return '$' + num(value, 2);
+      default:                return num(value, 1) + (unit ? ' ' + unit : '');
+    }
+  }
+
   /* Localised name of an indicator group ("Trade", "Food security", ...). */
   function categoryLabel(cat) {
     if (typeof RSAi18n === 'undefined') return cat;
@@ -3356,6 +3396,7 @@ const RSAIndicators = (function () {
     label: label,
     categoryLabel: categoryLabel,
     unitLabel: unitLabel,
+    format: format,
     compute: compute,
     describe: describe,
     cagr: cagr,
@@ -11238,6 +11279,18 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
     if (Math.abs(x) >= 1e3) return (x / 1e3).toFixed(0) + ' kha';
     return Math.round(x) + ' ha';
   }
+  function people(x) {
+    if (x == null || !isFinite(x)) return '—';
+    if (Math.abs(x) >= 1e9) return (x / 1e9).toFixed(2) + ' bn';
+    if (Math.abs(x) >= 1e6) return (x / 1e6).toFixed(1) + ' M';
+    if (Math.abs(x) >= 1e3) return (x / 1e3).toFixed(0) + ' k';
+    return String(Math.round(x));
+  }
+
+  // The canonical unit formatter lives beside the unit definitions, in
+  // rsa-indicators.js, so it can be tested without loading the view layer.
+  const fmtUnit = (value, unit, long) => RSAIndicators.format(value, unit, long);
+
   function usd1k(x) {
     if (x == null || !isFinite(x)) return '—';
     const v = x * 1000;
@@ -11686,9 +11739,7 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
           const v = values[iso];
           readout.querySelector('.ro-name').textContent = c ? c.name : iso;
           readout.querySelector('.ro-val').textContent =
-            (v != null && isFinite(v))
-              ? RSAi18n.num(v, ind.unit === '%' ? 1 : 0) + (ind.unit === '%' ? '%' : ' ' + ind.unit)
-              : T('lbl.noData');
+            (v != null && isFinite(v)) ? fmtUnit(v, ind.unit) : T('lbl.noData');
           readout.querySelector('.ro-rank').textContent =
             rankOf[iso] ? '#' + rankOf[iso] + ' / ' + ranked.length : '';
         };
@@ -11722,8 +11773,10 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
           .filter(r => r.v != null && isFinite(r.v))
           .sort((a, b2) => b2.v - a.v);
         figHost.appendChild(card('Values in ' + S.mapYear + ' (' + rows.length + ' countries)', [
-          h('div', { class: 'scroll-y' }, [table(null, [T('tbl.rank'), T('tbl.country'), ind.label],
-            rows.map((r, i) => [i + 1, r.name, f(r.v, ind.unit === '%' ? 1 : 0)]),
+          h('div', { class: 'scroll-y' }, [table(null,
+            [T('tbl.rank'), T('tbl.country'),
+             ind.label + ' (' + RSAIndicators.unitLabel(ind.unit) + ')'],
+            rows.map((r, i) => [i + 1, r.name, fmtUnit(r.v, ind.unit)]),
             [true, false, true])]),
           h('div', { class: 'controls' }, [
             h('button', { text: 'Download this year (CSV)', onclick: () => {
@@ -11866,7 +11919,7 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
                 new google.maps.InfoWindow({
                   content: '<b>' + ((RSA.country(iso) || {}).name || iso) + '</b><br>' +
                     ind.label + ' ' + S.mapYear + ': ' +
-                    (v == null ? 'no data' : RSAFigs.fmtNum(v, ind.unit) + (ind.unit === '%' ? '%' : ''))
+                    (v == null ? T('lbl.noData') : fmtUnit(v, ind.unit))
                 }).open(map);
               });
             });
@@ -11936,15 +11989,8 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
     const kp = h('div', { class: 'kpis' });
     ids.forEach(id => {
       const r = I.compute(id, b), last = lastOf(r);
-      // Each unit formatted as its own unit. Area used to share the tonnes
-      // branch, and yield fell through to a bare number with no unit at all.
-      const v = last ? (r.unit === '%' ? f(last.value) + '%'
-        : r.unit === 't' ? tonnes(last.value)
-        : r.unit === 'ha' ? hectares(last.value)
-        : r.unit === 'kg/ha' ? f(last.value, 0) + ' ' + I.unitLabel('kg/ha')
-        : r.unit === 'kg/capita' ? f(last.value) + ' ' + T('unit.kgOnly')
-        : f(last.value)) : '—';
-      kp.appendChild(kpi(I.get(id).label, v, last && last.year, 'observed'));
+      kp.appendChild(kpi(I.get(id).label, last ? fmtUnit(last.value, r.unit) : '—',
+                         last && last.year, 'observed'));
     });
     el.appendChild(kp);
 
@@ -14933,8 +14979,8 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
             t.side === 'supply' ? T('adv.supply') : T('adv.demand'),
             f(t.rate, 2) + '%/yr',
             f(t.share, 1) + '%',
-            f(t.from, t.unit === 'kg/capita' ? 1 : 0),
-            f(t.to, t.unit === 'kg/capita' ? 1 : 0)
+            fmtUnit(t.from, t.unit),
+            fmtUnit(t.to, t.unit)
           ]),
           { caption: T('adv.termsCaption') }),
         h('p', { class: 'muted small', text: T('adv.dominant')

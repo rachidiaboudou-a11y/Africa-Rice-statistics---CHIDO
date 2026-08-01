@@ -1765,6 +1765,39 @@ const RSATests = (function () {
     /* Area is a LAND AREA. It used to be routed through the tonnes formatter, so
      * Benin's 128,501 hectares was displayed as "129 kt" -- an area quoted as a
      * weight, on the headline tile of the country profile. */
+    /* Every unit in the registry must format as ITS OWN unit. This is the test
+     * that would have caught area rendering as "129 kt": the formatter is now
+     * shared, so a unit can be wrong in one place only by being wrong here. */
+    const EXPECT = {
+      't': /t$|kt$|Mt$/, 'ha': /ha$|kha$|Mha$/, 'persons': /^[\d.,]+\s*[kM]?$/,
+      '%': /%$/, 'kg\/ha': /kg\/ha$/, 'kg\/capita': /kg$/,
+      'kcal\/capita\/day': /kcal$/, 'USD\/t': /^\$.*\/t$/, 'USD\/capita': /^\$/,
+      '1000 USD': /USD$/, 'ha\/1000 capita': /ha\/1000$/
+    };
+    const unitsSeen = {}, unitFails = [];
+    I.list().forEach(d => {
+      unitsSeen[d.unit] = 1;
+      const s = I.format(12345.678, d.unit);
+      const pat = EXPECT[d.unit.replace(/\//g, '\\/')];
+      if (pat && !pat.test(s)) unitFails.push(d.unit + ' -> "' + s + '"');
+      // Whatever the unit, a tonnage suffix must never appear on a non-tonnage.
+      if (d.unit !== 't' && /\b(kt|Mt)$/.test(s)) unitFails.push(d.unit + ' formatted as tonnes: "' + s + '"');
+    });
+    ok('every indicator unit formats as its own unit', unitFails.length === 0,
+       unitFails.join(' | ') || Object.keys(unitsSeen).length + ' distinct units checked');
+
+    // The specific regression, spelled out.
+    ok('128,501 ha formats as hectares, never as tonnes',
+       /kha$/.test(I.format(128501, 'ha')), I.format(128501, 'ha'));
+    ok('335,406 t formats as tonnes', /kt$/.test(I.format(335406, 't')), I.format(335406, 't'));
+    ok('a yield always carries kg/ha', /kg\/ha$/.test(I.format(2610.1, 'kg/ha')),
+       I.format(2610.1, 'kg/ha'));
+    ok('a null value formats as an em dash, not NaN', I.format(null, 't') === '—');
+    ok('a non-finite value formats as an em dash', I.format(Infinity, '%') === '—');
+    ok('an unknown unit still shows the unit rather than a bare number',
+       I.format(5, 'furlongs') === '5,0 furlongs' || I.format(5, 'furlongs') === '5.0 furlongs',
+       I.format(5, 'furlongs'));
+
     ok('area carries the hectare unit, not tonnes', I.get('area').unit === 'ha');
     ok('yield carries kg/ha', I.get('yield').unit === 'kg/ha');
     ok('production carries tonnes', I.get('production').unit === 't');

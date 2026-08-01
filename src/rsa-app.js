@@ -88,6 +88,18 @@
     if (Math.abs(x) >= 1e3) return (x / 1e3).toFixed(0) + ' kha';
     return Math.round(x) + ' ha';
   }
+  function people(x) {
+    if (x == null || !isFinite(x)) return '—';
+    if (Math.abs(x) >= 1e9) return (x / 1e9).toFixed(2) + ' bn';
+    if (Math.abs(x) >= 1e6) return (x / 1e6).toFixed(1) + ' M';
+    if (Math.abs(x) >= 1e3) return (x / 1e3).toFixed(0) + ' k';
+    return String(Math.round(x));
+  }
+
+  // The canonical unit formatter lives beside the unit definitions, in
+  // rsa-indicators.js, so it can be tested without loading the view layer.
+  const fmtUnit = (value, unit, long) => RSAIndicators.format(value, unit, long);
+
   function usd1k(x) {
     if (x == null || !isFinite(x)) return '—';
     const v = x * 1000;
@@ -536,9 +548,7 @@
           const v = values[iso];
           readout.querySelector('.ro-name').textContent = c ? c.name : iso;
           readout.querySelector('.ro-val').textContent =
-            (v != null && isFinite(v))
-              ? RSAi18n.num(v, ind.unit === '%' ? 1 : 0) + (ind.unit === '%' ? '%' : ' ' + ind.unit)
-              : T('lbl.noData');
+            (v != null && isFinite(v)) ? fmtUnit(v, ind.unit) : T('lbl.noData');
           readout.querySelector('.ro-rank').textContent =
             rankOf[iso] ? '#' + rankOf[iso] + ' / ' + ranked.length : '';
         };
@@ -572,8 +582,10 @@
           .filter(r => r.v != null && isFinite(r.v))
           .sort((a, b2) => b2.v - a.v);
         figHost.appendChild(card('Values in ' + S.mapYear + ' (' + rows.length + ' countries)', [
-          h('div', { class: 'scroll-y' }, [table(null, [T('tbl.rank'), T('tbl.country'), ind.label],
-            rows.map((r, i) => [i + 1, r.name, f(r.v, ind.unit === '%' ? 1 : 0)]),
+          h('div', { class: 'scroll-y' }, [table(null,
+            [T('tbl.rank'), T('tbl.country'),
+             ind.label + ' (' + RSAIndicators.unitLabel(ind.unit) + ')'],
+            rows.map((r, i) => [i + 1, r.name, fmtUnit(r.v, ind.unit)]),
             [true, false, true])]),
           h('div', { class: 'controls' }, [
             h('button', { text: 'Download this year (CSV)', onclick: () => {
@@ -716,7 +728,7 @@
                 new google.maps.InfoWindow({
                   content: '<b>' + ((RSA.country(iso) || {}).name || iso) + '</b><br>' +
                     ind.label + ' ' + S.mapYear + ': ' +
-                    (v == null ? 'no data' : RSAFigs.fmtNum(v, ind.unit) + (ind.unit === '%' ? '%' : ''))
+                    (v == null ? T('lbl.noData') : fmtUnit(v, ind.unit))
                 }).open(map);
               });
             });
@@ -786,15 +798,8 @@
     const kp = h('div', { class: 'kpis' });
     ids.forEach(id => {
       const r = I.compute(id, b), last = lastOf(r);
-      // Each unit formatted as its own unit. Area used to share the tonnes
-      // branch, and yield fell through to a bare number with no unit at all.
-      const v = last ? (r.unit === '%' ? f(last.value) + '%'
-        : r.unit === 't' ? tonnes(last.value)
-        : r.unit === 'ha' ? hectares(last.value)
-        : r.unit === 'kg/ha' ? f(last.value, 0) + ' ' + I.unitLabel('kg/ha')
-        : r.unit === 'kg/capita' ? f(last.value) + ' ' + T('unit.kgOnly')
-        : f(last.value)) : '—';
-      kp.appendChild(kpi(I.get(id).label, v, last && last.year, 'observed'));
+      kp.appendChild(kpi(I.get(id).label, last ? fmtUnit(last.value, r.unit) : '—',
+                         last && last.year, 'observed'));
     });
     el.appendChild(kp);
 
@@ -3783,8 +3788,8 @@
             t.side === 'supply' ? T('adv.supply') : T('adv.demand'),
             f(t.rate, 2) + '%/yr',
             f(t.share, 1) + '%',
-            f(t.from, t.unit === 'kg/capita' ? 1 : 0),
-            f(t.to, t.unit === 'kg/capita' ? 1 : 0)
+            fmtUnit(t.from, t.unit),
+            fmtUnit(t.to, t.unit)
           ]),
           { caption: T('adv.termsCaption') }),
         h('p', { class: 'muted small', text: T('adv.dominant')

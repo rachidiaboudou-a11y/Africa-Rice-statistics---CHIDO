@@ -650,6 +650,45 @@ const RSAIndicators = (function () {
     return (key && RSAi18n.has(key)) ? RSAi18n.t(key) : unit;
   }
 
+  /* THE unit formatter. Every indicator value displayed anywhere goes through
+   * this, so a unit can be wrong in one place only by being wrong everywhere.
+   *
+   * It lives here, beside the unit definitions, rather than in the view layer,
+   * because each display site used to carry its own ad-hoc ternary and each
+   * could therefore be wrong in its own way: the country profile formatted
+   * harvested area with the TONNES helper, so 128,501 hectares rendered as
+   * "129 kt", while the map ranking table and the map tooltip printed bare
+   * numbers with no unit at all. */
+  function num(x, dp) {
+    if (typeof RSAi18n !== 'undefined' && RSAi18n.num) return RSAi18n.num(x, dp);
+    return Number(x).toFixed(dp);
+  }
+  function scaled(x, units) {
+    const a = Math.abs(x);
+    if (a >= 1e6) return (x / 1e6).toFixed(2) + ' ' + units[2];
+    if (a >= 1e3) return (x / 1e3).toFixed(0) + ' ' + units[1];
+    return Math.round(x) + ' ' + units[0];
+  }
+  function format(value, unit, long) {
+    if (value == null || !isFinite(value)) return '—';
+    switch (unit) {
+      case 't':               return scaled(value, ['t', 'kt', 'Mt']);
+      case 'ha':              return scaled(value, ['ha', 'kha', 'Mha']);
+      case 'persons':         return scaled(value, ['', 'k', 'M']).trim();
+      case '%':               return num(value, 1) + '%';
+      case 'kg/ha':           return num(value, 0) + ' ' + unitLabel('kg/ha');
+      case 'kg/capita':       return num(value, 1) + ' ' + (long ? unitLabel('kg/capita') : 'kg');
+      case 'kcal/capita/day': return num(value, 0) + ' kcal';
+      case 'ratio':           return num(value, 2);
+      case 'index (-1 to 1)': return num(value, 3);
+      case 'ha/1000 capita':  return num(value, 1) + ' ha/1000';
+      case '1000 USD':        return scaled(value * 1000, ['USD', 'k USD', 'M USD']);
+      case 'USD/t':           return '$' + num(value, 0) + '/t';
+      case 'USD/capita':      return '$' + num(value, 2);
+      default:                return num(value, 1) + (unit ? ' ' + unit : '');
+    }
+  }
+
   /* Localised name of an indicator group ("Trade", "Food security", ...). */
   function categoryLabel(cat) {
     if (typeof RSAi18n === 'undefined') return cat;
@@ -766,6 +805,7 @@ const RSAIndicators = (function () {
     label: label,
     categoryLabel: categoryLabel,
     unitLabel: unitLabel,
+    format: format,
     compute: compute,
     describe: describe,
     cagr: cagr,

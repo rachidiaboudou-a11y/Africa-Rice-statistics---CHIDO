@@ -14,3 +14,6 @@ data/update.log
 .DS_Store
 Thumbs.db
 *.swp
+
+# Output of push-with-log.cmd -- a local run record, not project history.
+push-log.txt

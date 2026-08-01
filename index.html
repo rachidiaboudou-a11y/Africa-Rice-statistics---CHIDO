@@ -383,8 +383,8 @@ footer p { margin: 4px 0; }
 </footer>
 
 <script>
-/* Rice Statistics for Africa -- bundled 2026-08-01 17:48:04 UTC, source at 0745f66 */
-const RSA_BUILD = { date: '2026-08-01', time: '17:48', stamp: '2026-08-01 17:48:04 UTC', builtFrom: '0745f66' };
+/* Rice Statistics for Africa -- bundled 2026-08-01 18:13:49 UTC, source at e42f632 */
+const RSA_BUILD = { date: '2026-08-01', time: '18:13', stamp: '2026-08-01 18:13:49 UTC', builtFrom: 'e42f632' };
 /* ===== rsa-i18n.js ========================================================= */
 /* Rice Statistics for Africa -- internationalisation (English / French).
  *
@@ -595,6 +595,10 @@ const RSAi18n = (function () {
     'foot.built':     { en: 'built', fr: 'compilé le' },
     'unit.kgOnly':    { en: 'kg', fr: 'kg' },
     'unit.capitaDay': { en: 'capita/day', fr: 'habitant/jour' },
+    'profile.dbDivergence': {
+      en: 'The two databases disagree about this country. The same FAO formula gives {0}% on {1} and {2}% on {3} for {4}. They are not disagreeing about the formula, nor about how much rice exists — they disagree about which country it went to. FAOSTAT records what cleared customs; USDA PSD estimates where the rice is actually consumed. Benin and Nigeria are the clearest case and are exact mirror images of each other: on FAOSTAT, Nigeria imports 142 kt and Benin 1.80 Mt; on USDA, Nigeria imports 3.30 Mt and Benin 335 kt. It is the same rice, crossing the same border, attributed differently. Switch the Database control to see the other figure, and treat neither as settled on its own.',
+      fr: 'Les deux bases de données divergent pour ce pays. La même formule de la FAO donne {0} % avec {1} et {2} % avec {3} pour {4}. Le désaccord ne porte ni sur la formule ni sur les quantités de riz, mais sur le pays auquel elles sont attribuées. FAOSTAT enregistre ce qui a été dédouané ; l’USDA PSD estime où le riz est réellement consommé. Le Bénin et le Nigéria en sont l’illustration la plus nette et sont exactement symétriques : selon FAOSTAT, le Nigéria importe 142 kt et le Bénin 1,80 Mt ; selon l’USDA, le Nigéria importe 3,30 Mt et le Bénin 335 kt. Il s’agit du même riz, franchissant la même frontière, attribué différemment. Changez la base de données pour voir l’autre chiffre, et ne considérez aucun des deux comme définitif isolément.'
+    },
     'profile.noFbs': { en: 'no food balance sheet is published for this country',
                        fr: 'aucun bilan alimentaire n’est publié pour ce pays' },
     'profile.cpcInflated': {
@@ -12021,6 +12025,32 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
             .replace('{1}', cpcNow.year)
             .replace('{2}', fbLast ? RSAi18n.num(fbLast.value, 1) + ' kg (' + fbLast.year + ')'
                                    : T('profile.noFbs'))));
+      }
+    }
+
+    /* The same FAO formula on the other database. Where the two disagree by more
+     * than a few points they are not disagreeing about the formula, nor about how
+     * much rice exists -- they disagree about WHICH COUNTRY it went to. Benin and
+     * Nigeria are exact mirror images: FAOSTAT records customs declarations, so
+     * Nigeria imports 142 kt and Benin 1.80 Mt; USDA estimates where the rice is
+     * eaten, so Nigeria imports 3.30 Mt and Benin 335 kt. One database alone
+     * cannot say which is nearer the truth, and showing only one invites a
+     * reader to treat it as settled. */
+    if (b.members.length === 1) {
+      const other = S.db === 'usda' ? 'fao' : 'usda';
+      let ob = null;
+      try { ob = RSA.balance(other, b.selection, { basis: 'milled' }); } catch (e) { ob = null; }
+      const here = lastOf(I.compute('ssr', b));
+      if (ob && here) {
+        const k = ob.years.indexOf(here.year);
+        const v = k < 0 ? null : I.compute('ssr', ob).values[k];
+        if (v != null && Math.abs(v - here.value) >= 15) {
+          el.appendChild(note('warning', T('profile.dbDivergence')
+            .replace('{0}', RSAi18n.num(here.value, 1)).replace('{1}', b.db)
+            .replace('{2}', RSAi18n.num(v, 1))
+            .replace('{3}', other === 'fao' ? 'FAOSTAT' : 'USDA PSD')
+            .replace('{4}', here.year)));
+        }
       }
     }
 

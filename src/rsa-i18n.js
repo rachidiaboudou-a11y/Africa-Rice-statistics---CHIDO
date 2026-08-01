@@ -207,6 +207,10 @@ const RSAi18n = (function () {
     'foot.built':     { en: 'built', fr: 'compilé le' },
     'unit.kgOnly':    { en: 'kg', fr: 'kg' },
     'unit.capitaDay': { en: 'capita/day', fr: 'habitant/jour' },
+    'profile.dbDivergence': {
+      en: 'The two databases disagree about this country. The same FAO formula gives {0}% on {1} and {2}% on {3} for {4}. They are not disagreeing about the formula, nor about how much rice exists — they disagree about which country it went to. FAOSTAT records what cleared customs; USDA PSD estimates where the rice is actually consumed. Benin and Nigeria are the clearest case and are exact mirror images of each other: on FAOSTAT, Nigeria imports 142 kt and Benin 1.80 Mt; on USDA, Nigeria imports 3.30 Mt and Benin 335 kt. It is the same rice, crossing the same border, attributed differently. Switch the Database control to see the other figure, and treat neither as settled on its own.',
+      fr: 'Les deux bases de données divergent pour ce pays. La même formule de la FAO donne {0} % avec {1} et {2} % avec {3} pour {4}. Le désaccord ne porte ni sur la formule ni sur les quantités de riz, mais sur le pays auquel elles sont attribuées. FAOSTAT enregistre ce qui a été dédouané ; l’USDA PSD estime où le riz est réellement consommé. Le Bénin et le Nigéria en sont l’illustration la plus nette et sont exactement symétriques : selon FAOSTAT, le Nigéria importe 142 kt et le Bénin 1,80 Mt ; selon l’USDA, le Nigéria importe 3,30 Mt et le Bénin 335 kt. Il s’agit du même riz, franchissant la même frontière, attribué différemment. Changez la base de données pour voir l’autre chiffre, et ne considérez aucun des deux comme définitif isolément.'
+    },
     'profile.noFbs': { en: 'no food balance sheet is published for this country',
                        fr: 'aucun bilan alimentaire n’est publié pour ce pays' },
     'profile.cpcInflated': {

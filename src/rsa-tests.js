@@ -1798,6 +1798,38 @@ const RSATests = (function () {
        I.format(5, 'furlongs') === '5,0 furlongs' || I.format(5, 'furlongs') === '5.0 furlongs',
        I.format(5, 'furlongs'));
 
+    /* The two databases apply the SAME formula and still disagree sharply for a
+     * handful of countries, because they attribute transit rice to different
+     * countries. Benin and Nigeria are exact mirror images and are the reason a
+     * single-database SSR must never be presented as settled. */
+    const ssrOn = (db, iso) => {
+      const b2 = RSA.balance(db, { kind: 'country', id: iso }, { basis: 'milled' });
+      const k = b2.years.indexOf(2024);
+      return k < 0 ? null : RSAIndicators.compute('ssr', b2).values[k];
+    };
+    const benFao = ssrOn('fao', 'BEN'), benUsda = ssrOn('usda', 'BEN');
+    const ngaFao = ssrOn('fao', 'NGA'), ngaUsda = ssrOn('usda', 'NGA');
+    ok('Benin self-sufficiency differs by more than 15 points between the databases',
+       Math.abs(benUsda - benFao) >= 15,
+       'FAOSTAT ' + fmt(benFao) + '% vs USDA ' + fmt(benUsda) + '%');
+    ok('Nigeria differs too, and in the OPPOSITE direction -- they are mirror images',
+       Math.abs(ngaUsda - ngaFao) >= 15 &&
+       Math.sign(benUsda - benFao) !== Math.sign(ngaUsda - ngaFao),
+       'Benin ' + fmt(benUsda - benFao) + ' pp, Nigeria ' + fmt(ngaUsda - ngaFao) + ' pp');
+    ok('and the import figures are what swap: FAOSTAT loads Benin, USDA loads Nigeria',
+       (function () {
+         const bf = RSA.balance('fao', { kind: 'country', id: 'BEN' }, { basis: 'milled' });
+         const bu = RSA.balance('usda', { kind: 'country', id: 'BEN' }, { basis: 'milled' });
+         const nf = RSA.balance('fao', { kind: 'country', id: 'NGA' }, { basis: 'milled' });
+         const nu = RSA.balance('usda', { kind: 'country', id: 'NGA' }, { basis: 'milled' });
+         const i = bf.years.indexOf(2024);
+         return bf.imports[i] > bu.imports[i] * 3 && nu.imports[i] > nf.imports[i] * 3;
+       })());
+    // Egypt is not an entrepot, so the two sources must agree there.
+    ok('Egypt, which is not a transit economy, agrees across both databases',
+       Math.abs(ssrOn('usda', 'EGY') - ssrOn('fao', 'EGY')) < 5,
+       'FAOSTAT ' + fmt(ssrOn('fao', 'EGY')) + '% vs USDA ' + fmt(ssrOn('usda', 'EGY')) + '%');
+
     ok('area carries the hectare unit, not tonnes', I.get('area').unit === 'ha');
     ok('yield carries kg/ha', I.get('yield').unit === 'kg/ha');
     ok('production carries tonnes', I.get('production').unit === 't');

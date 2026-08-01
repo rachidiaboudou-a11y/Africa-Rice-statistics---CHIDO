@@ -831,6 +831,32 @@
       }
     }
 
+    /* The same FAO formula on the other database. Where the two disagree by more
+     * than a few points they are not disagreeing about the formula, nor about how
+     * much rice exists -- they disagree about WHICH COUNTRY it went to. Benin and
+     * Nigeria are exact mirror images: FAOSTAT records customs declarations, so
+     * Nigeria imports 142 kt and Benin 1.80 Mt; USDA estimates where the rice is
+     * eaten, so Nigeria imports 3.30 Mt and Benin 335 kt. One database alone
+     * cannot say which is nearer the truth, and showing only one invites a
+     * reader to treat it as settled. */
+    if (b.members.length === 1) {
+      const other = S.db === 'usda' ? 'fao' : 'usda';
+      let ob = null;
+      try { ob = RSA.balance(other, b.selection, { basis: 'milled' }); } catch (e) { ob = null; }
+      const here = lastOf(I.compute('ssr', b));
+      if (ob && here) {
+        const k = ob.years.indexOf(here.year);
+        const v = k < 0 ? null : I.compute('ssr', ob).values[k];
+        if (v != null && Math.abs(v - here.value) >= 15) {
+          el.appendChild(note('warning', T('profile.dbDivergence')
+            .replace('{0}', RSAi18n.num(here.value, 1)).replace('{1}', b.db)
+            .replace('{2}', RSAi18n.num(v, 1))
+            .replace('{3}', other === 'fao' ? 'FAOSTAT' : 'USDA PSD')
+            .replace('{4}', here.year)));
+        }
+      }
+    }
+
     b.notes.forEach(n => el.appendChild(note(n.level, n.text)));
 
     // diagnosis

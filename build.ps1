@@ -55,7 +55,20 @@ if ($html -notmatch [regex]::Escape("<!-- @modules -->")) {
 }
 
 $stamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
-$banner = "/* Rice Statistics for Africa -- bundled $stamp */"
+$day   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
+
+# The commit this bundle was built from. A version number alone cannot tell a
+# reader WHICH v1.0.0 they are looking at -- the version changes when the
+# methodology changes, but the data and the fixes change far more often. The
+# build date answers "is what I am reading current?", which is the question
+# someone checking a figure actually has.
+$commit = ""
+try { $commit = (& git -C $root rev-parse --short HEAD 2>$null) } catch { }
+if (-not $commit) { $commit = "unversioned" }
+$commit = $commit.Trim()
+
+$banner = "/* Rice Statistics for Africa -- bundled $stamp from $commit */" + [Environment]::NewLine +
+          "const RSA_BUILD = { date: '$day', stamp: '$stamp', commit: '$commit' };"
 $script = "<script>" + [Environment]::NewLine + $banner + [Environment]::NewLine + $sb.ToString() + "</script>"
 
 $html = $html.Replace("<!-- @modules -->", $script)

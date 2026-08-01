@@ -204,6 +204,7 @@ const RSAi18n = (function () {
                        fr: 'Afrique (tous les pays déclarants)' },
     'sel.ssa':       { en: 'Sub-Saharan Africa (SSA)',
                        fr: 'Afrique subsaharienne (ASS)' },
+    'foot.built':     { en: 'built', fr: 'compilé le' },
     'unit.kgOnly':    { en: 'kg', fr: 'kg' },
     'unit.capitaDay': { en: 'capita/day', fr: 'habitant/jour' },
     'profile.noFbs': { en: 'no food balance sheet is published for this country',

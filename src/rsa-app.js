@@ -2064,7 +2064,8 @@
         'its price.'
       ]) },
       { type: 'table', caption: 'Reproducibility', columns: ['Field', 'Value'],
-        rows: [['Platform', 'Rice Statistics for Africa v' + RSA_VERSION],
+        rows: [['Platform', 'Rice Statistics for Africa v' + RSA_VERSION +
+                    (typeof RSA_BUILD !== 'undefined' ? ' (built ' + RSA_BUILD.date + ', ' + RSA_BUILD.commit + ')' : '')],
                ['Database', bal().db], ['Basis', S.basis],
                ['Yield ceiling', opts.maxYieldFactor + '× current'],
                ['Area ceiling', opts.maxAreaFactor + '× current'],
@@ -2469,7 +2470,8 @@
         T('crisis.lim1'), T('crisis.lim2'), T('crisis.lim3'), T('crisis.lim4'), T('crisis.lim5')
       ] },
       { type: 'table', caption: T('crisis.repManifest'), columns: ['Field', 'Value'],
-        rows: [['Platform', 'Rice Statistics for Africa v' + RSA_VERSION],
+        rows: [['Platform', 'Rice Statistics for Africa v' + RSA_VERSION +
+                    (typeof RSA_BUILD !== 'undefined' ? ' (built ' + RSA_BUILD.date + ', ' + RSA_BUILD.commit + ')' : '')],
                ['Selection', b.label], ['Database', b.db], ['Basis', b.basis],
                ['Trade series', 'FAOSTAT item ' + (b.tradeItem || '—')],
                ['Data extracted', prov.extracted],
@@ -3266,7 +3268,8 @@
         'identify loss reduction as one of five routes to closing a production gap.'
       ]) },
       { type: 'table', caption: 'Reproducibility', columns: ['Field', 'Value'],
-        rows: [['Platform', 'Rice Statistics for Africa v' + RSA_VERSION],
+        rows: [['Platform', 'Rice Statistics for Africa v' + RSA_VERSION +
+                    (typeof RSA_BUILD !== 'undefined' ? ' (built ' + RSA_BUILD.date + ', ' + RSA_BUILD.commit + ')' : '')],
                ['Model', 'van Oort et al. (2015)'],
                ['Milling rate', String(RSAVanOort.MILLING_RATE)],
                ['Database', bal().db], ['Target year', String(year)],
@@ -4120,6 +4123,8 @@
       T('fresh.extracted') + ' ' + RSAi18n.date(prov.extracted) + ' · ' +
       prov.sources.map(s => s.db + ' ' + s.published).join(' · ') +
       ' · v' + RSA_VERSION +
+      (typeof RSA_BUILD !== 'undefined'
+        ? ' · ' + T('foot.built') + ' ' + RSA_BUILD.date + ' (' + RSA_BUILD.commit + ')' : '') +
       ' · ' + (cov.language === 'fr' ? 'français' : 'English') + ' ' + cov.pct + '%';
   }
 
@@ -4136,8 +4141,13 @@
     // are reported as handled rather than as an outstanding fault.
     const level = errs > 2 ? 'bad' : (errs > 0 || warns > 0 ? 'warn' : 'good');
     el.className = 'build-badge ' + level;
-    el.textContent = 'v' + RSA_VERSION;
+    // Version AND build date. The version marks the methodology; the date marks
+    // this particular build, which is what tells a reader whether the figure in
+    // front of them is current.
+    const build = (typeof RSA_BUILD !== 'undefined') ? RSA_BUILD : null;
+    el.textContent = 'v' + RSA_VERSION + (build ? ' · ' + build.date : '');
     el.title = 'Rice Statistics for Africa v' + RSA_VERSION +
+      (build ? '\nBuilt ' + build.stamp + ' from commit ' + build.commit : '') +
       '\nData integrity: ' + sweep.checked + ' country balances checked, ' +
       errs + ' range error(s), ' + warns + ' warning(s).' +
       (errs ? '\nErrors are country-years where the source reports exports above production ' +

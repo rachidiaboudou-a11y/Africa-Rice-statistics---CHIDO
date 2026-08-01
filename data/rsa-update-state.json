@@ -1,0 +1,71 @@
+{
+    "checked":  "2026-07-31T10:26:51Z",
+    "lastRebuild":  "2026-07-31T10:26:51Z",
+    "changed":  [
+                    "production",
+                    "trade",
+                    "population",
+                    "fbs",
+                    "psd",
+                    "geo"
+                ],
+    "unreachable":  [
+
+                    ],
+    "sources":  {
+                    "population":  {
+                                       "key":  "population",
+                                       "db":  "FAOSTAT",
+                                       "url":  "https://bulks-faostat.fao.org/production/Population_E_Africa.zip",
+                                       "lastModified":  "Mon, 09 Mar 2026 08:51:41 GMT",
+                                       "length":  "334654",
+                                       "ok":  true,
+                                       "error":  null
+                                   },
+                    "psd":  {
+                                "key":  "psd",
+                                "db":  "USDA PSD",
+                                "url":  "https://apps.fas.usda.gov/psdonline/downloads/psd_grains_pulses_csv.zip",
+                                "lastModified":  "Fri, 10 Jul 2026 15:33:19 GMT",
+                                "length":  "2870463",
+                                "ok":  true,
+                                "error":  null
+                            },
+                    "trade":  {
+                                  "key":  "trade",
+                                  "db":  "FAOSTAT",
+                                  "url":  "https://bulks-faostat.fao.org/production/Trade_CropsLivestock_E_Africa.zip",
+                                  "lastModified":  "Fri, 24 Jul 2026 09:01:46 GMT",
+                                  "length":  "11868740",
+                                  "ok":  true,
+                                  "error":  null
+                              },
+                    "geo":  {
+                                "key":  "geo",
+                                "db":  "Natural Earth",
+                                "url":  "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson",
+                                "lastModified":  null,
+                                "length":  "838726",
+                                "ok":  true,
+                                "error":  null
+                            },
+                    "production":  {
+                                       "key":  "production",
+                                       "db":  "FAOSTAT",
+                                       "url":  "https://bulks-faostat.fao.org/production/Production_Crops_Livestock_E_Africa.zip",
+                                       "lastModified":  "Wed, 31 Dec 2025 11:33:19 GMT",
+                                       "length":  "4319333",
+                                       "ok":  true,
+                                       "error":  null
+                                   },
+                    "fbs":  {
+                                "key":  "fbs",
+                                "db":  "FAOSTAT",
+                                "url":  "https://bulks-faostat.fao.org/production/FoodBalanceSheets_E_Africa.zip",
+                                "lastModified":  "Tue, 28 Oct 2025 08:45:56 GMT",
+                                "length":  "4003904",
+                                "ok":  true,
+                                "error":  null
+                            }
+                }
+}

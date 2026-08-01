@@ -1,0 +1,16 @@
+# Raw downloads from FAOSTAT / USDA PSD. These are large (~180 MB), are
+# reproducible with tools/build-data.ps1, and nothing at runtime reads them --
+# the site only ever fetches the compiled data/rsa-*.json files.
+data/raw/
+
+# Pre-rebuild archives written by tools/auto-update.ps1 before it overwrites the
+# compiled data. Local rollback safety net, not project history.
+data/versions/
+
+# Rolling log from the scheduled updater.
+data/update.log
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp

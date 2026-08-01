@@ -1,0 +1,43 @@
+name: Deploy to GitHub Pages
+
+# The site is fully static: index.html is a self-contained bundle that fetches
+# the compiled data/rsa-*.json files over relative paths. There is nothing to
+# compile in CI, so this workflow just uploads the repository as-is.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deployment finish rather than cancelling it midway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # .nojekyll stops GitHub's Jekyll pass, which would otherwise skip any
+      # file or directory beginning with an underscore.
+      - name: Disable Jekyll processing
+        run: touch .nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rice Statistics for Africa</title>
+<meta name="description" content="Rice production, trade, self-sufficiency, forecasts and policy simulation for African countries, from FAOSTAT and USDA PSD.">
+<style>
+:root {
+  --bg: #0e1412; --bg-2: #131b18; --bg-3: #18211d; --line: #24302a; --line-2: #2f3d36;
+  --ink: #e4ece7; --ink-2: #a6b5ac; --ink-3: #74857b;
+  --accent: #4fb98a; --accent-2: #7cc39b; --accent-dim: #1f7a5c;
+  --warn: #d9944f; --danger: #e0705c; --info: #6ba3e0; --scenario: #8d7ce0;
+  --radius: 6px; --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f7faf8; --bg-2: #ffffff; --bg-3: #eef3f0; --line: #dde5e0; --line-2: #c9d4cd;
+    --ink: #16201b; --ink-2: #4c5a52; --ink-3: #75837a;
+    --accent: #1f7a5c; --accent-2: #2f9070; --accent-dim: #9ed3bb;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+/* Keyboard-only escape from the header controls into the content. */
+.skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; padding: 10px 16px;
+  background: var(--accent); color: #fff; border-radius: 0 0 4px 0; font-size: 13px; }
+.skip-link:focus { left: 0; }
+/* A visible focus ring everywhere, not just where a browser happens to draw one. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+body { background: var(--bg); color: var(--ink); font: 14px/1.55 var(--sans); }
+a { color: var(--accent); }
+h1, h2, h3, h4 { line-height: 1.25; margin: 0; font-weight: 600; }
+
+/* ---------------------------------------------------------------- layout */
+.wrap { max-width: 1340px; margin: 0 auto; padding: 0 20px; }
+header.top { border-bottom: 1px solid var(--line); background: var(--bg-2); position: sticky; top: 0; z-index: 40; }
+.top-in { display: flex; align-items: center; gap: 18px; padding: 10px 0; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.brand b { font-size: 15px; letter-spacing: .01em; }
+.brand span { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .1em; }
+.ctl { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+select, input[type=text], input[type=number] {
+  background: var(--bg-3); color: var(--ink); border: 1px solid var(--line-2);
+  border-radius: 4px; padding: 5px 8px; font: inherit; font-size: 12.5px; }
+select:focus, input:focus { outline: 2px solid var(--accent-dim); outline-offset: 1px; }
+button {
+  background: var(--bg-3); color: var(--ink); border: 1px solid var(--line-2); border-radius: 4px;
+  padding: 6px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
+@media (prefers-color-scheme: light) { button.primary { color: #06231a; } }
+button.primary:hover { background: var(--accent); }
+button[aria-pressed=true] { border-color: var(--accent); color: var(--accent); }
+
+nav.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); background: var(--bg-2);
+  overflow-x: auto; position: sticky; top: 49px; z-index: 39; }
+nav.tabs button {
+  background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0;
+  padding: 10px 14px; color: var(--ink-2); white-space: nowrap; font-size: 13px; }
+nav.tabs button[aria-selected=true] { color: var(--accent); border-bottom-color: var(--accent); }
+nav.tabs button:hover { color: var(--ink); }
+
+main { padding: 22px 0 80px; }
+.panel { display: none; }
+.panel.active { display: block; }
+/* min() in the track floor so a narrow viewport collapses to one column instead
+ * of forcing the grid wider than the screen and giving the page a horizontal
+ * scrollbar. */
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); }
+.g3 { grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
+.card { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+.card > h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-2);
+  margin-bottom: 12px; }
+.section-h { display: flex; align-items: baseline; gap: 12px; margin: 26px 0 12px; flex-wrap: wrap; }
+.section-h h2 { font-size: 17px; }
+.section-h p { margin: 0; color: var(--ink-3); font-size: 12.5px; }
+
+/* ------------------------------------------------------------------ hero */
+.hero { position: relative; overflow: hidden; border-radius: 10px; border: 1px solid var(--line);
+  background: #0d2b22; padding: 34px 30px; margin-bottom: 24px; }
+/* The illustration sits behind the hero content, full-bleed. The child selectors
+   are qualified because `.hero > *` would otherwise out-specify a bare
+   `.hero-art` rule and drop the artwork back into the flow. */
+.hero > * { position: relative; z-index: 1; }
+/* The artwork is a full-width band at natural aspect, not stretched to the hero
+   box. Stretching it meant that on a narrow, tall hero the SVG scaled to cover
+   by height and magnified the sky to fill the panel, so the landscape vanished.
+   At natural aspect it always reads, and a gradient fades its lower edge into
+   the hero background so the band does not end in a hard line. */
+.hero > .hero-art { position: absolute; top: 0; left: 0; right: 0; z-index: 0; line-height: 0; }
+.hero > .hero-art svg { width: 100%; height: auto; display: block; }
+.hero > .hero-art::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+  height: 55%; background: linear-gradient(to bottom, rgba(13,43,34,0) 0%, #0d2b22 92%); }
+.hero > .hero-credit { position: absolute; right: 10px; bottom: 6px; z-index: 2; font-size: 10px;
+  color: rgba(233,245,238,.5); letter-spacing: .03em; }
+.hero-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 28px; align-items: center; }
+/* Text sits over artwork, so it carries its own shadow rather than relying on a
+   heavy scrim that would hide the illustration. */
+.hero h1 { font-size: 30px; letter-spacing: -.01em; color: #f2faf5; margin-bottom: 10px;
+  text-shadow: 0 2px 14px rgba(3,12,9,.85), 0 1px 3px rgba(3,12,9,.9); }
+.hero p { color: #cfe4d8; margin: 0 0 8px; max-width: 54ch; font-size: 14px;
+  text-shadow: 0 1px 8px rgba(3,12,9,.9); }
+.hero .q { display: flex; gap: 22px; margin-top: 18px; flex-wrap: wrap; }
+.hero .q div { border-left: 2px solid #57c691; padding-left: 10px; }
+.hero .q b { display: block; font-size: 12px; color: #8fe0b4; text-transform: uppercase;
+  letter-spacing: .08em; text-shadow: 0 1px 6px rgba(3,12,9,.95); }
+.hero .q span { font-size: 12.5px; color: #d3e8dc; text-shadow: 0 1px 8px rgba(3,12,9,.95); }
+.hero-fig { background: rgba(4,16,12,.72); border: 1px solid rgba(87,198,145,.4); border-radius: 8px;
+  padding: 12px; backdrop-filter: blur(3px); }
+
+/* -------------------------------------------------------------- elements */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(158px, 100%), 1fr)); gap: 10px; }
+.kpi { background: var(--bg-3); border: 1px solid var(--line); border-left-width: 3px;
+  border-radius: 4px; padding: 9px 11px; }
+.kpi .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+.kpi .v { font-size: 20px; font-weight: 600; margin: 2px 0 1px; font-variant-numeric: tabular-nums; }
+.kpi .y { font-size: 11px; color: var(--ink-3); }
+.kpi-observed { border-left-color: var(--accent); }
+.kpi-forecast { border-left-color: var(--info); }
+.kpi-scenario { border-left-color: var(--scenario); }
+.kpi-assumption { border-left-color: var(--warn); }
+
+.tag { display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: .07em;
+  padding: 1.5px 6px; border-radius: 3px; border: 1px solid var(--line-2); color: var(--ink-3);
+  vertical-align: middle; }
+.tag-observed { border-color: var(--accent); color: var(--accent); }
+.tag-forecast { border-color: var(--info); color: var(--info); }
+.tag-scenario { border-color: var(--scenario); color: var(--scenario); }
+.tag-assumption { border-color: var(--warn); color: var(--warn); }
+
+.note { border-left: 3px solid var(--line-2); background: var(--bg-3); padding: 9px 12px;
+  border-radius: 0 4px 4px 0; margin: 10px 0; font-size: 12.5px; color: var(--ink-2); }
+.note-warning { border-left-color: var(--warn); }
+.note-error { border-left-color: var(--danger); }
+.note-info { border-left-color: var(--info); }
+.note-positive { border-left-color: var(--accent); }
+
+.finding { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 4px;
+  padding: 11px 14px; margin: 10px 0; background: var(--bg-2); }
+.finding h4 { font-size: 13.5px; margin-bottom: 4px; }
+.finding p { margin: 0; font-size: 13px; color: var(--ink-2); }
+.finding .meta { font-size: 11px; color: var(--ink-3); margin-top: 6px; font-family: var(--mono); }
+.finding-warning { border-left-color: var(--warn); }
+.finding-info { border-left-color: var(--info); }
+
+table.data { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+table.data caption { text-align: left; font-weight: 600; padding-bottom: 8px; color: var(--ink-2); }
+table.data th, table.data td { border-bottom: 1px solid var(--line); padding: 6px 9px; text-align: left;
+  vertical-align: top; }
+table.data thead th { border-bottom: 1.5px solid var(--line-2); color: var(--ink-2); font-weight: 600;
+  position: sticky; top: 0; background: var(--bg-2); }
+table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums;
+  font-family: var(--mono); font-size: 12px; }
+table.data tbody tr:hover { background: var(--bg-3); }
+.scroll { overflow-x: auto; max-width: 100%; }
+.scroll-y { max-height: 460px; overflow-y: auto; }
+
+.eq { background: var(--bg-3); border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px;
+  margin: 10px 0; }
+.eq h4 { font-size: 13px; margin-bottom: 7px; }
+.formula { font-family: var(--mono); font-size: 12.5px; background: var(--bg-2); border: 1px solid var(--line);
+  padding: 7px 10px; border-radius: 3px; overflow-x: auto; color: var(--accent-2); }
+.eq dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: 12px;
+  margin: 9px 0 0; }
+.eq dt { font-family: var(--mono); color: var(--accent-2); }
+.eq dd { margin: 0; color: var(--ink-2); }
+.eq .interp { font-size: 12.5px; color: var(--ink-2); margin: 8px 0 0; }
+.eq .limit { font-size: 12.5px; color: var(--warn); margin: 6px 0 0; }
+
+.fig { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px; margin-bottom: 16px; }
+.fig-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.fig-head h3 { font-size: 13px; }
+.fig-head .acts { margin-left: auto; display: flex; gap: 5px; }
+.fig-head button { padding: 3px 8px; font-size: 11px; }
+svg.rsa-fig text { font-family: var(--sans); fill: var(--ink); }
+svg.rsa-fig .rsa-title { font-size: 13px; font-weight: 600; }
+svg.rsa-fig .rsa-title-sm { font-size: 11px; font-weight: 600; }
+svg.rsa-fig .rsa-subtitle { font-size: 10.5px; fill: var(--ink-3); }
+svg.rsa-fig .rsa-axis { font-size: 10px; fill: var(--ink-3); }
+svg.rsa-fig .rsa-axis-y { text-anchor: end; }
+svg.rsa-fig .rsa-axis-x { text-anchor: middle; }
+svg.rsa-fig .rsa-axis-title { font-size: 10.5px; fill: var(--ink-3); text-anchor: middle; }
+svg.rsa-fig .rsa-legend { font-size: 10.5px; fill: var(--ink-2); }
+svg.rsa-fig .rsa-bar-label { font-size: 11px; fill: var(--ink-2); }
+svg.rsa-fig .rsa-bar-value { font-size: 10.5px; fill: var(--ink-3); }
+svg.rsa-fig .rsa-grid { stroke: var(--line); stroke-width: 1; }
+svg.rsa-fig .rsa-axis-line { stroke: var(--line-2); stroke-width: 1; }
+svg.rsa-fig .rsa-ref { stroke: var(--danger); stroke-width: 1; stroke-dasharray: 4 3; }
+svg.rsa-fig .rsa-ref-label { font-size: 10px; fill: var(--danger); }
+svg.rsa-fig .rsa-marker { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 2 3; }
+svg.rsa-fig .rsa-marker-label { font-size: 9.5px; fill: var(--ink-3); }
+svg.rsa-fig .rsa-acf-band { fill: rgba(79,185,138,.13); }
+svg.rsa-fig .rsa-empty { font-size: 12px; fill: var(--ink-3); }
+svg.rsa-fig .rsa-tile-code { font-size: 10px; font-weight: 600; fill: #0b1a14; }
+svg.rsa-fig .rsa-tile-value { font-size: 9px; fill: #12241c; }
+svg.rsa-map .rsa-tile { cursor: pointer; }
+svg.rsa-map .rsa-tile:hover rect { stroke: var(--accent); stroke-width: 2; }
+svg.rsa-map .rsa-tile-empty .rsa-tile-code { fill: var(--ink-3); }
+svg.rsa-geomap .rsa-geo-country { cursor: pointer; }
+svg.rsa-geomap .rsa-geo-country:hover path,
+svg.rsa-geomap .rsa-geo-country:hover circle { stroke: var(--accent); stroke-width: 1.6; }
+svg.rsa-geomap .rsa-geo-label { font-size: 9.5px; font-weight: 600; pointer-events: none; }
+svg.rsa-geomap .rsa-geo-value { font-size: 8.5px; pointer-events: none; }
+
+/* Map panel: the base layer sits behind the SVG overlay when Google Maps is on. */
+.mapstack { position: relative; border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden; background: var(--bg-2); }
+.mapstack .gmap { position: absolute; inset: 0; }
+.mapstack .overlay { position: relative; z-index: 2; pointer-events: none; }
+.mapstack .overlay svg { pointer-events: auto; }
+/* Live readout under the map: sweep the continent and read values without
+   chasing a tooltip that vanishes. */
+.map-readout { display: flex; align-items: baseline; gap: 14px; padding: 9px 14px; margin-top: -8px;
+  background: var(--bg-3); border: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius);
+  min-height: 40px; }
+.map-readout .ro-name { font-weight: 600; font-size: 14px; min-width: 190px; }
+.map-readout .ro-val { font-family: var(--mono); font-size: 17px; color: var(--accent);
+  font-variant-numeric: tabular-nums; }
+.map-readout .ro-rank { font-size: 12px; color: var(--ink-3); margin-left: auto;
+  font-family: var(--mono); }
+svg.rsa-geomap .rsa-geo-country path { transition: fill .18s ease, stroke-width .12s ease; }
+
+/* Progress bar for the long country scans. Without it the page looks frozen
+   while several seconds of model fitting run. */
+.progress { position: relative; height: 30px; background: var(--bg-3); border: 1px solid var(--line);
+  border-radius: 4px; overflow: hidden; margin: 16px 0; }
+.progress-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent-dim);
+  transition: width .18s linear; }
+.progress-label { position: relative; display: block; line-height: 30px; padding: 0 12px;
+  font-size: 12.5px; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.playbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
+.playbar input[type=range] { flex: 1; min-width: 180px; }
+.yearbadge { font-family: var(--mono); font-size: 20px; font-weight: 600; color: var(--accent);
+  min-width: 68px; text-align: center; }
+.horizon-hi { background: rgba(79,185,138,.10); }
+
+.legend-kinds { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3);
+  margin-top: 8px; }
+.legend-kinds i { display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--accent);
+  vertical-align: middle; margin-right: 5px; }
+.legend-kinds .f i { border-top-style: dashed; border-color: var(--info); }
+.legend-kinds .s i { border-top-style: dotted; border-color: var(--scenario); }
+
+.controls { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
+.field { display: flex; flex-direction: column; gap: 3px; }
+.field label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+.field input[type=range] { width: 170px; }
+.rangeval { font-family: var(--mono); font-size: 12px; color: var(--accent-2); }
+
+.chat { display: flex; flex-direction: column; gap: 10px; }
+.msg { border-radius: 6px; padding: 10px 13px; font-size: 13px; max-width: 62em; }
+.msg-q { background: var(--bg-3); border: 1px solid var(--line); align-self: flex-end; }
+.msg-a { background: var(--bg-2); border: 1px solid var(--line); border-left: 3px solid var(--accent); }
+.msg-a.unanswered { border-left-color: var(--warn); }
+.evidence { margin-top: 9px; border-top: 1px dashed var(--line-2); padding-top: 8px; font-size: 11.5px;
+  color: var(--ink-3); font-family: var(--mono); }
+.evidence b { color: var(--ink-2); font-family: var(--sans); }
+.suggest { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
+.suggest button { font-size: 11.5px; padding: 4px 9px; }
+
+.pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px;
+  border: 1px solid var(--line-2); color: var(--ink-2); }
+.pill.good { border-color: var(--accent); color: var(--accent); }
+.pill.bad { border-color: var(--danger); color: var(--danger); }
+.pill.mid { border-color: var(--warn); color: var(--warn); }
+
+.muted { color: var(--ink-3); font-size: 12px; }
+.spinner { color: var(--ink-3); font-size: 13px; padding: 40px 0; text-align: center; }
+footer { border-top: 1px solid var(--line); padding: 18px 0 40px; color: var(--ink-3); font-size: 11.5px; }
+footer p { margin: 4px 0; }
+.checkgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
+  gap: 3px 12px; max-height: 260px; overflow-y: auto; font-size: 12.5px; }
+.checkgrid label { display: flex; gap: 6px; align-items: center; color: var(--ink-2); }
+
+/* Narrow viewports: let the header controls stack and stop the selection box
+ * from setting a floor wider than the screen. */
+@media (max-width: 620px) {
+  .wrap { padding: 0 12px; }
+  .hero { padding: 22px 16px; }
+  .hero h1 { font-size: 22px; }
+  .top-in { gap: 10px; }
+  .ctl { width: 100%; }
+  .ctl select { flex: 1; min-width: 0; }
+  #c-sel { min-width: 0 !important; }
+  .controls { gap: 10px; }
+  .field input[type=range] { width: 100%; }
+}
+.ctl select { max-width: 100%; }
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap top-in">
+    <div class="brand"><b id="brand-title">Rice Statistics for Africa</b><span id="brand-tag">rice intelligence &amp; policy support</span></div>
+    <div class="ctl"><label for="c-lang" id="lbl-lang">Language</label>
+      <select id="c-lang">
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+      </select></div>
+    <div class="ctl"><label for="c-db" id="lbl-db">Database</label>
+      <select id="c-db">
+        <option value="fao">FAOSTAT</option>
+        <option value="usda">USDA PSD</option>
+      </select></div>
+    <div class="ctl"><label for="c-basis" id="lbl-basis">Basis</label>
+      <select id="c-basis">
+        <option value="milled" selected>Milled equivalent (FAO definition)</option>
+        <option value="paddy">Paddy equivalent</option>
+        <option value="asPublished">As published (paddy vs milled)</option>
+      </select></div>
+    <div class="ctl"><label for="c-trade" id="lbl-trade">Trade series</label>
+      <select id="c-trade" title="FAOSTAT rice trade aggregate">
+        <option value="std" selected>Total rice (item 30, incl. broken)</option>
+        <option value="milled31">Milled only (item 31 — paper replication)</option>
+      </select></div>
+    <div class="ctl"><label for="c-sel" id="lbl-sel">Selection</label>
+      <select id="c-sel" style="min-width:200px"></select></div>
+    <div class="ctl"><label for="c-target" id="lbl-target">Target</label>
+      <select id="c-target">
+        <option value="trends">Trends (all observed years)</option>
+        <option value="2030">2030</option>
+        <option value="2035">2035</option>
+        <option value="2040" selected>2040</option>
+        <option value="2045">2045</option>
+        <option value="2050">2050</option>
+      </select></div>
+  </div>
+</header>
+
+<nav class="tabs wrap" id="tabs" role="tablist"></nav>
+
+<main class="wrap" id="main" tabindex="-1">
+  <div id="boot" class="spinner">Loading FAOSTAT and USDA data&hellip;</div>
+  <div id="panels" hidden>
+    <section class="panel" id="p-overview" role="tabpanel"></section>
+    <section class="panel" id="p-map" role="tabpanel"></section>
+    <section class="panel" id="p-profile" role="tabpanel"></section>
+    <section class="panel" id="p-compare" role="tabpanel"></section>
+    <section class="panel" id="p-forecast" role="tabpanel"></section>
+    <section class="panel" id="p-scenarios" role="tabpanel"></section>
+    <section class="panel" id="p-condition" role="tabpanel"></section>
+    <section class="panel" id="p-crisis" role="tabpanel"></section>
+    <section class="panel" id="p-westafrica" role="tabpanel"></section>
+    <section class="panel" id="p-datused" role="tabpanel"></section>
+    <section class="panel" id="p-sources" role="tabpanel"></section>
+    <section class="panel" id="p-copilot" role="tabpanel"></section>
+    <section class="panel" id="p-report" role="tabpanel"></section>
+  </div>
+</main>
+
+<footer class="wrap">
+  <p><b>Rice Statistics for Africa</b> — built on FAOSTAT and USDA PSD. Self-sufficiency indicators
+     follow FAO (2001), <i>Food Balance Sheets: A Handbook</i>, as applied by Gassi, Gul &amp; Cetin
+     (2025), <i>Rice Self-Sufficiency in Benin: Analysis and Forecasts</i>,
+     <i>International Journal of Food and Agricultural Economics</i> 13(1), 29–42.</p>
+  <p>Observed data, model forecasts and policy simulations are distinct kinds of statement and are
+     labelled as such throughout. Scenario results are simulations under stated assumptions — not
+     predictions, and not causal estimates of policy impact.</p>
+  <p id="foot-prov"></p>
+</footer>
+
+<!-- @modules -->
+</body>
+</html>

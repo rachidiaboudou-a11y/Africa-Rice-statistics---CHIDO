@@ -1,0 +1,69 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Rice Statistics for Africa -- test suite</title>
+<style>
+  body { font: 13px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
+         background: #0f1211; color: #d7e0da; margin: 0; padding: 24px; }
+  h1 { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: #7fd1a4; margin: 0 0 16px; }
+  pre { white-space: pre-wrap; margin: 0; }
+  .pass { color: #7fd1a4; } .fail { color: #ff8b7a; } .muted { color: #6d7a72; }
+  #summary { margin-bottom: 18px; padding: 10px 14px; border-left: 3px solid #7fd1a4; background: #151a18; }
+  #summary.bad { border-left-color: #ff8b7a; }
+</style>
+<h1>Rice Statistics for Africa &mdash; test suite</h1>
+<div id="summary" class="muted">loading data&hellip;</div>
+<pre id="out"></pre>
+
+<script src="src/rsa-i18n.js"></script>
+<script src="src/rsa-core.js"></script>
+<script src="src/rsa-indicators.js"></script>
+<script src="src/rsa-tsa.js"></script>
+<script src="src/rsa-scenarios.js"></script>
+<script src="src/rsa-policy.js"></script>
+<script src="src/rsa-crisis.js"></script>
+<script src="src/rsa-condition.js"></script>
+<script src="src/rsa-vanoort.js"></script>
+<script src="src/rsa-datadict.js"></script>
+<script src="src/rsa-report.js"></script>
+<script src="src/rsa-tests.js"></script>
+<script>
+(async function () {
+  const out = document.getElementById('out');
+  const sum = document.getElementById('summary');
+  function line(text, cls) {
+    const s = document.createElement('span');
+    if (cls) s.className = cls;
+    s.textContent = text + '\n';
+    out.appendChild(s);
+  }
+  try {
+    await RSA.load('data/');
+  } catch (e) {
+    sum.className = 'bad';
+    sum.textContent = 'FAILED TO LOAD DATA: ' + e;
+    console.error('[rsa-tests] data load failed', e);
+    return;
+  }
+  const s = await RSATests.run();
+  sum.className = s.failed ? 'bad' : '';
+  sum.textContent = s.passed + ' / ' + s.total + ' passed' +
+    (s.failed ? '  --  ' + s.failed + ' FAILED' : '  --  all green') + '   (' + s.ms + ' ms)';
+
+  Object.keys(s.byGroup).forEach(g => {
+    const b = s.byGroup[g];
+    line('');
+    line(g.toUpperCase() + '   ' + b.pass + ' passed, ' + b.fail + ' failed',
+         b.fail ? 'fail' : 'pass');
+    s.results.filter(r => r.group === g).forEach(r => {
+      line((r.pass ? '  ok    ' : '  FAIL  ') + r.name + (r.detail ? '   [' + r.detail + ']' : ''),
+           r.pass ? 'muted' : 'fail');
+    });
+  });
+
+  // Machine-readable line for the harness driving this page.
+  console.log('[rsa-tests] ' + JSON.stringify({
+    passed: s.passed, failed: s.failed, total: s.total, ms: s.ms,
+    failures: s.results.filter(r => !r.pass).map(r => r.group + ' :: ' + r.name + ' :: ' + r.detail)
+  }));
+})();
+</script>

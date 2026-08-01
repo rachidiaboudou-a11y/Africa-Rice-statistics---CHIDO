@@ -226,6 +226,9 @@ const RSA = (function () {
       exportValue: new Array(n).fill(null),
       stocksChange: new Array(n).fill(null),
       reporting: new Array(n).fill(0),      // how many members reported production
+      // Years where exports exceeded production plus imports, so apparent
+      // utilization came out negative and every ratio built on it was withheld.
+      brokenBalanceYears: [],
       notes: [],
       unit: 't',
       populationUnit: 'persons',
@@ -413,8 +416,44 @@ const RSA = (function () {
         // is treated as zero, which is what FAOSTAT's own suppression convention
         // implies and what the source paper's arithmetic requires; the flag
         // below records it so the platform can say so.
-        out.consumption[i] = P + M - (X != null ? X : 0);
+        const supply = P + M - (X != null ? X : 0);
+        /* A negative apparent utilization is not a lean year, it is a broken
+         * balance sheet: the country cannot have exported more rice than it grew
+         * and bought. FAOSTAT carries a handful of these -- Kenya in 1992 reports
+         * exports of 175,541 t against production of 29,616 t and imports of
+         * 59,597 t, which used to yield an SSR of -34.3%, an import dependency of
+         * -69.0% and a per-capita consumption of -3.5 kg, all plotted as fact.
+         *
+         * Every ratio here divides by this quantity, so leaving it null is what
+         * makes the whole family of indicators drop out together for that year
+         * rather than each inventing its own nonsense. The year is recorded so
+         * the platform can say WHICH years it withheld and why. */
+        if (supply > 0) {
+          out.consumption[i] = supply;
+        } else if (supply < 0) {
+          out.brokenBalanceYears.push({ year: years[i], supply: supply,
+                                        production: P, imports: M, exports: X || 0 });
+        }
         out.consumptionMethod = 'apparent utilization: P + M - X, excluding stock change (FAO 2001)';
+      }
+    }
+
+    if (out.brokenBalanceYears.length) {
+      const yrs = out.brokenBalanceYears.map(b => b.year).join(', ');
+      out.notes.push({
+        level: 'warning',
+        text: 'Withheld as unusable: ' + yrs + '. In ' +
+              (out.brokenBalanceYears.length === 1 ? 'that year' : 'those years') +
+              ' the source reports exports exceeding production plus imports, so apparent ' +
+              'utilization is negative and every ratio resting on it — self-sufficiency, ' +
+              'import dependency, consumption per capita — would be meaningless. The ' +
+              'underlying production and trade figures are still shown; only the derived ' +
+              'ratios are suppressed.'
+      });
+      if (typeof RSAValidate !== 'undefined') {
+        RSAValidate.logWarning('balance',
+          out.label + ' (' + dbName + '): negative apparent utilization in ' + yrs,
+          { selection: out.label, db: dbName, years: out.brokenBalanceYears });
       }
     }
 
@@ -592,6 +631,13 @@ const RSA = (function () {
       millingRate: rate,
       sourceBasis: f.basis,
       note: f.note,
+      // The balance sheet's OWN production and trade lines, as distinct from the
+      // production and trade matrices. These are the reconciled series, and they
+      // are what the AfricaRice / CARD country pages publish, so exposing them is
+      // what makes those pages reproducible here. See indicator `ssrFbs`.
+      production: new Array(n).fill(null),
+      imports: new Array(n).fill(null),
+      exports: new Array(n).fill(null),
       food: new Array(n).fill(null),
       domesticSupply: new Array(n).fill(null),
       feed: new Array(n).fill(null),
@@ -605,7 +651,8 @@ const RSA = (function () {
       kcalPerCapitaDay: new Array(n).fill(null)
     };
 
-    const TONNE_FIELDS = ['food', 'domesticSupply', 'feed', 'seed', 'losses',
+    const TONNE_FIELDS = ['production', 'imports', 'exports',
+                          'food', 'domesticSupply', 'feed', 'seed', 'losses',
                           'processing', 'otherUses', 'stockVariation'];
 
     for (let i = 0; i < n; i++) {

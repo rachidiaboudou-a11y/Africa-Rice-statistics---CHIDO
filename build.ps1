@@ -22,6 +22,7 @@ if (-not (Test-Path $shell)) {
 # Order matters: core defines RSA, which the others reference at call time.
 $modules = @(
   "rsa-i18n.js",
+  "rsa-validate.js",
   "rsa-core.js",
   "rsa-indicators.js",
   "rsa-tsa.js",

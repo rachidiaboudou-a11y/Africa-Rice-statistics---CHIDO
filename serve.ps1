@@ -23,7 +23,7 @@ $MIME = @{
   ".ico"="image/x-icon"; ".woff2"="font/woff2"; ".map"="application/json"
 }
 
-$sources = @("src\shell.html","src\rsa-i18n.js","src\rsa-core.js","src\rsa-indicators.js","src\rsa-tsa.js",
+$sources = @("src\shell.html","src\rsa-i18n.js","src\rsa-validate.js","src\rsa-core.js","src\rsa-indicators.js","src\rsa-tsa.js",
              "src\rsa-scenarios.js","src\rsa-policy.js","src\rsa-crisis.js","src\rsa-condition.js",
              "src\rsa-vanoort.js","src\rsa-datadict.js","src\rsa-figs.js","src\rsa-report.js",
              "src\rsa-app.js")

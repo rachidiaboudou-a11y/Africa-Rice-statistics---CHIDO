@@ -366,6 +366,59 @@ const RSAIndicators = (function () {
       }
     },
 
+    /* The SSR as the Coalition for African Rice Development publishes it on the
+     * AfricaRice country pages (riceforafrica.net). Same FAO (2001) formula as
+     * `ssr`, but every term is taken from INSIDE the Food Balance Sheet rather
+     * than from the trade matrix.
+     *
+     * That single choice is the whole reason the platform's SSR and the CARD
+     * country pages disagree, and the disagreement can be large. FBS trade is
+     * the balanced series -- reconciled against supply and utilization, with
+     * re-exports and stock movements resolved -- whereas the trade matrix is
+     * what customs reported. For Senegal in 2023 the matrix gives imports of
+     * 1,302,312 t; the balance sheet gives 1,566,460 t, and CARD publishes
+     * 1,559,000 t. Reproducing them therefore requires the FBS route.
+     *
+     * Verified against the published pages: Senegal 2023 40.66% vs CARD 40.7%,
+     * Nigeria 99.92% vs CARD 99.9%. Both inside a rounding step. */
+    ssrFbs: {
+      id: 'ssrFbs', label: 'Self-sufficiency, balance-sheet basis (CARD convention)',
+      category: 'Food security', unit: PCT,
+      equation: 'SSR^FBS_t = 100 x P^FBS_t / (P^FBS_t + M^FBS_t - X^FBS_t)',
+      latex: 'SSR^{\\text{FBS}}_t = \\frac{P^{\\text{FBS}}_t}' +
+             '{P^{\\text{FBS}}_t + M^{\\text{FBS}}_t - X^{\\text{FBS}}_t}\\times 100',
+      variables: [
+        { sym: 'P^FBS_t', def: 'production as carried in the food balance sheet, milled basis', unit: 't' },
+        { sym: 'M^FBS_t', def: 'imports as carried in the food balance sheet', unit: 't' },
+        { sym: 'X^FBS_t', def: 'exports as carried in the food balance sheet', unit: 't' }
+      ],
+      note: 'This is the series to use when checking the platform against the AfricaRice / CARD ' +
+            'country pages at riceforafrica.net. It is the same FAO formula as SSR; only the ' +
+            'source of the trade terms differs.',
+      interpretation: 'Self-sufficiency measured on the reconciled balance sheet. Where this and ' +
+        'the trade-matrix SSR diverge, the gap is unrecorded re-export or a stock movement that ' +
+        'the balance sheet has resolved and the customs series has not. Benin is the clearest ' +
+        'case in Africa: rice enters, is counted as an import, and leaves again for Nigeria ' +
+        'without ever being recorded as an export.',
+      limitations: 'Requires food balance sheet coverage, which is incomplete: Benin, Mali, Togo ' +
+        'and Sudan are entirely absent from the current FAOSTAT release, so for those countries ' +
+        'this series stops in 2013 where the historic release ends. It is also a later and less ' +
+        'frequently updated series than the trade matrix.',
+      source: 'FAOSTAT Food Balance Sheets, elements 5511 / 5611 / 5911',
+      fbs: true,
+      compute: b => {
+        const P = fbsSeries(b, 'production');
+        const M = fbsSeries(b, 'imports');
+        const X = fbsSeries(b, 'exports');
+        const out = new Array(b.years.length).fill(null);
+        for (let i = 0; i < out.length; i++) {
+          if (P[i] == null || M[i] == null) continue;
+          out[i] = safeDiv(100 * P[i], P[i] + M[i] - (X[i] || 0));
+        }
+        return out;
+      }
+    },
+
     kcalRice: {
       id: 'kcalRice', label: 'Calories from rice', category: 'Food security', unit: 'kcal/capita/day',
       equation: 'K_t  (FAOSTAT Food Balance Sheet, element 664)',

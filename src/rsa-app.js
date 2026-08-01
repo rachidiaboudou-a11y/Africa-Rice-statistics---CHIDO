@@ -3713,9 +3713,11 @@
     $('#c-db').addEventListener('change', e => {
       S.db = e.target.value;
       $('#c-basis').disabled = (S.db === 'usda');
-      invalidate(); go(S.tab);
+      invalidate(); go(S.tab); headerBadge();
     });
-    $('#c-basis').addEventListener('change', e => { S.basis = e.target.value; invalidate(); go(S.tab); });
+    $('#c-basis').addEventListener('change', e => {
+      S.basis = e.target.value; invalidate(); go(S.tab); headerBadge();
+    });
     $('#c-trade').addEventListener('change', e => {
       S.stdTrade = e.target.value === 'std';
       invalidate(); go(S.tab);
@@ -3734,6 +3736,7 @@
     });
 
     footerProvenance();
+    headerBadge();
 
     $('#boot').hidden = true;
     $('#panels').hidden = false;
@@ -3748,6 +3751,28 @@
       prov.sources.map(s => s.db + ' ' + s.published).join(' · ') +
       ' · v' + RSA_VERSION +
       ' · ' + (cov.language === 'fr' ? 'français' : 'English') + ' ' + cov.pct + '%';
+  }
+
+  /* A version and a data-integrity state, visible without opening a panel.
+   * A number on screen that nobody can date is a number nobody can check, and
+   * the integrity light is what says whether the validator found anything in
+   * the data currently loaded. */
+  function headerBadge() {
+    const el = $('#hdr-build');
+    if (!el) return;
+    const sweep = RSAValidate.sweep(S.db || 'fao', { basis: S.basis || 'milled' });
+    const errs = sweep.errors.length, warns = sweep.warnings.length;
+    // The two known broken balance sheets are understood and withheld, so they
+    // are reported as handled rather than as an outstanding fault.
+    const level = errs > 2 ? 'bad' : (errs > 0 || warns > 0 ? 'warn' : 'good');
+    el.className = 'build-badge ' + level;
+    el.textContent = 'v' + RSA_VERSION;
+    el.title = 'Rice Statistics for Africa v' + RSA_VERSION +
+      '\nData integrity: ' + sweep.checked + ' country balances checked, ' +
+      errs + ' range error(s), ' + warns + ' warning(s).' +
+      (errs ? '\nErrors are country-years where the source reports exports above production ' +
+              'plus imports; the derived ratios for those years are withheld.' : '') +
+      '\nOpen Data Used for the full validation report.';
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

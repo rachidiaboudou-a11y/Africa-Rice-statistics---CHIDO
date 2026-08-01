@@ -28,7 +28,7 @@ changes, and serves with `no-store` so a reload always reflects the last edit.
 If port 8788 is unavailable — on Windows it can fall inside an administered exclusion range — pass
 another one: `.\serve.ps1 -Port 8790`, and read `8790` for `8788` below.
 
-Run the test suite at <http://localhost:8788/tests.html> — **447 tests**, all green.
+Run the test suite at <http://localhost:8788/tests.html> — **501 tests**, all green.
 
 To publish the site to GitHub Pages, see [DEPLOY.md](DEPLOY.md).
 
@@ -220,15 +220,52 @@ here — and the input data reconciles:
 | Yield | 3.89 t/ha | 3.89 t/ha | exact |
 | SSR | 18.0% | 18.25% | 0.25 pp |
 
-Two differences are real and documented rather than "fixed":
+### What actually drives the remaining difference
 
-- **Milling rate.** They compute at 0.70 (despite citing 0.667); this platform uses FAO's 0.67.
-  That accounts for essentially all of the 0.25 pp SSR gap.
-- **Year labelling.** Their "2023" row carries FAOSTAT's 2022 values. This platform labels years as
-  FAOSTAT does.
+An earlier version of this note attributed the SSR gap to a 0.70 milling rate. That was wrong: CARD
+state 0.667, essentially FAO's 0.67. Checking Senegal and Nigeria as well as Benin located the real
+cause, and it is not a rate at all.
 
-Their exports matching mine *to the decimal* on item 30 is the strongest available confirmation that
-the trade-series correction below is right.
+**CARD take every trade term from inside the Food Balance Sheet; this platform's headline SSR takes
+them from the trade matrix.** The FBS series is the *balanced* one — reconciled against supply and
+utilization, with re-exports and stock movements resolved — while the trade matrix is what customs
+reported. For Senegal in 2023 the matrix gives imports of 1,302,312 t; the balance sheet gives
+1,566,460 t; CARD publish 1,559,000 t.
+
+That is now reproducible rather than merely explained. The indicator **`ssrFbs`** ("Self-sufficiency,
+balance-sheet basis (CARD convention)") applies the same FAO formula to the FBS terms:
+
+| | CARD published | `ssrFbs` | |
+|---|---|---|---|
+| Senegal 2023 SSR | 40.7% | 40.66% | within rounding |
+| Nigeria SSR | 99.9% | 99.92% | within rounding |
+| Senegal 2023 per-capita food | 82.70 kg | 83.09 kg | 0.5% |
+| Nigeria per-capita food | 22.17 kg | 22.27 kg | 0.5% |
+| Senegal 2024 paddy production | 1,580,000 t | 1,580,000 t | **exact** |
+| Senegal 2024 area | 410,271 ha | 410,271 ha | **exact** |
+| Nigeria 2024 paddy production | 9,129,900 t | 9,129,900 t | **exact** |
+| Nigeria 2024 area | 4,572,900 ha | 4,572,900 ha | **exact** |
+| Benin 2010 paddy production | 124,975 t | 124,975 t | **exact** |
+
+Production and area agree exactly, because both sides read the same FAOSTAT table. All eight figures
+are pinned by tests.
+
+The two SSRs are reported side by side rather than one replacing the other, because they answer
+different questions and the **gap between them is itself the finding**. Senegal 2023: 45.5% on the
+trade matrix, 40.7% on the balance sheet. Where they diverge, the difference is unrecorded re-export
+or a stock movement the balance sheet has resolved and customs has not. Benin is the extreme case in
+Africa — rice enters, is counted as an import, and leaves again for Nigeria without ever being
+recorded as an export.
+
+Two further differences are real and documented rather than "fixed":
+
+- **Year labelling.** CARD carry the newest available FBS year under the current calendar year, so
+  their most recent row pairs current-year production with prior-year trade. This platform labels
+  years as the source does and leaves a year absent rather than borrowing the one before it.
+- **Balance-sheet coverage.** Benin, Mali, Togo and Sudan are **entirely absent** from FAOSTAT's
+  current Food Balance Sheet release (verified in the raw bulk file: 43 of 55 African countries are
+  present). For those countries `ssrFbs` stops in 2013, where the historic release ends, and the
+  platform returns null rather than silently substituting the trade matrix.
 
 ---
 
@@ -539,6 +576,58 @@ consumer welfare on a staple food and about informal trade defeating high tariff
 
 **All cost parameters are placeholders, not national costings.** The composition of an optimal
 package is more informative than its price tag.
+
+---
+
+## Validation, ranges and error logging
+
+`src/rsa-validate.js` carries three separate jobs, deliberately not merged:
+
+**1. Structural validation** — `validateDataset()` checks any dataset, loaded or user-supplied,
+before it can reach the engines: object shape, a strictly increasing integer year axis, ISO3 keys,
+arrays that are actually arrays, and **series length against the year axis**. That last one matters
+most: a ragged array does not throw, it silently shifts every value against the wrong year. Negative
+quantities and non-numeric cells are rejected. It never throws — the caller is asking *whether* it
+can proceed, and an exception would answer a different question.
+
+**2. Plausibility ranges** — every variable carries `min/max` (hard: outside this it is an error of
+unit or entry) and `lo/hi` (soft: unusual but real). Each range states the evidence that sets it, so
+when a value trips one you can judge whether the datum or the bound is wrong:
+
+| Variable | Hard | Soft | Set by |
+|---|---|---|---|
+| yield (paddy) | 10 – 14,000 kg/ha | 400 – 11,000 | Egypt ~9,500; van Oort potential 7,000–11,000; Chad 1984 drought at 48 |
+| per-capita supply | 0 – 400 kg | 0.1 – 180 | Guinea-Bissau/Sierra Leone ~110–130; above 180 signals re-export |
+| milling rate | 0.55 – 0.80 | 0.60 – 0.72 | FAO 0.67, CARD 0.667, van Oort 0.65 |
+| SSR | 0 – 100,000 % | 0 – 400 | unbounded above by construction; Egypt ~180% |
+
+Yield bounds are quoted on a **paddy** basis and a milled observation is converted up before testing,
+rather than the bound being loosened — loosening it would have blinded the check to real unit errors
+at the bottom of the range. Getting this wrong cost 131 false flags before it was fixed.
+
+**3. Error logging** — `guard()` wraps a calculation so a throw or a non-finite result becomes a
+logged, inspectable failure instead of an exception that blanks a panel or a silent null in a chart.
+The log is bounded at 500 entries but keeps a true total, so a failure inside a 55-country × 64-year
+loop cannot exhaust memory while still reporting its real scale.
+
+### What the sweep found in the live data
+
+Running this over both databases surfaced two genuine defects:
+
+- **Kenya 1992**: FAOSTAT reports exports of 175,541 t against production of 29,616 t and imports of
+  59,597 t. Apparent utilization is −86,327 t, and the platform was publishing an SSR of **−34.3%**,
+  an import dependency of −69.0% and a per-capita consumption of **−3.5 kg** — all plotted as fact.
+  A negative balance sheet is not a lean year; it is unusable. Those years are now withheld as a
+  family (every ratio rests on the same denominator, so they drop out together) with a note naming
+  the year and the reason. The underlying production and trade are still shown.
+- **Eswatini 1968**: the same fault at −1 t, a rounding artefact.
+
+Both are reported by the validator rather than edited out of the data, and the test asserts *exactly
+these two* are found — a third appearing should fail the build and be looked at.
+
+A version and data-integrity badge sits in the header: **v1.0.0** plus a light showing how many
+country balances were checked and what was raised, with the detail in the tooltip. The colour is
+never the only carrier of that state.
 
 ---
 

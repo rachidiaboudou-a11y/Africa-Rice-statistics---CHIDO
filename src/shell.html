@@ -44,6 +44,15 @@ header.top { border-bottom: 1px solid var(--line); background: var(--bg-2); posi
 .brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
 .brand b { font-size: 15px; letter-spacing: .01em; }
 .brand span { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .1em; }
+/* Version plus a data-integrity light. The dot is never the only carrier of the
+   state -- the full count is in the tooltip -- so it does not rely on colour. */
+.build-badge { font-size: 10px; letter-spacing: .06em; padding: 1px 6px; border-radius: 999px;
+  border: 1px solid var(--line-2); color: var(--ink-3); text-transform: none; cursor: help;
+  white-space: nowrap; }
+.build-badge::before { content: '\25CF'; margin-right: 4px; font-size: 8px; vertical-align: 1px; }
+.build-badge.good::before { color: #3fa14a; }
+.build-badge.warn::before { color: #c9a227; }
+.build-badge.bad::before  { color: #c0392b; }
 .ctl { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
 select, input[type=text], input[type=number] {
   background: var(--bg-3); color: var(--ink); border: 1px solid var(--line-2);
@@ -304,7 +313,7 @@ footer p { margin: 4px 0; }
 
 <header class="top">
   <div class="wrap top-in">
-    <div class="brand"><b id="brand-title">Rice Statistics for Africa</b><span id="brand-tag">rice intelligence &amp; policy support</span></div>
+    <div class="brand"><b id="brand-title">Rice Statistics for Africa</b><span id="brand-tag">rice intelligence &amp; policy support</span><span id="hdr-build" class="build-badge" role="status" aria-live="polite"></span></div>
     <div class="ctl"><label for="c-lang" id="lbl-lang">Language</label>
       <select id="c-lang">
         <option value="en">English</option>

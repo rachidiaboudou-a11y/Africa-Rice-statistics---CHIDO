@@ -1670,6 +1670,235 @@ const RSATests = (function () {
     ok('the Markdown includes the reference list', /## References/.test(md));
   }
 
+  /* ================== validation, ranges, logging and the CARD reconciliation */
+
+  function testValidation() {
+    group('validation and error logging');
+    const V = RSAValidate;
+
+    ok('the platform reports a semantic version', /^\d+\.\d+\.\d+$/.test(RSA_VERSION), RSA_VERSION);
+    ok('the validator carries the same version', V.VERSION === RSA_VERSION,
+       V.VERSION + ' vs ' + RSA_VERSION);
+
+    /* ---- structural validation ---- */
+    const good = { years: [2000, 2001, 2002],
+                   series: { BEN: { production: [1, 2, 3], area: [1, 1, 1],
+                                    imports: [0, 0, 0], exports: [0, 0, 0],
+                                    population: [1e6, 1e6, 1e6] } } };
+    ok('a well-formed dataset validates', V.validateDataset(good).ok === true);
+
+    // A ragged array is the defect that does not throw: it silently shifts every
+    // value against the wrong year, so it must be caught structurally.
+    const ragged = JSON.parse(JSON.stringify(good));
+    ragged.series.BEN.production = [1, 2];
+    const rv = V.validateDataset(ragged);
+    ok('a ragged series is rejected, naming the field and both lengths',
+       !rv.ok && rv.errors.some(e => e.code === 'length-mismatch'),
+       rv.errors.map(e => e.code).join(',') || '(none)');
+
+    const dup = { years: [2000, 2000], series: good.series };
+    ok('a non-increasing year axis is rejected',
+       V.validateDataset(dup).errors.some(e => e.code === 'year-order'));
+
+    const neg = JSON.parse(JSON.stringify(good));
+    neg.series.BEN.imports = [0, -5, 0];
+    ok('a negative quantity is rejected',
+       V.validateDataset(neg).errors.some(e => e.code === 'negative'));
+
+    const nan = JSON.parse(JSON.stringify(good));
+    nan.series.BEN.area = [1, 'x', 1];
+    ok('a non-numeric cell is rejected',
+       V.validateDataset(nan).errors.some(e => e.code === 'non-numeric'));
+
+    ok('a null dataset is refused without throwing', V.validateDataset(null).ok === false);
+    ok('validation never throws on garbage',
+       V.validateDataset({ years: 'nope' }).ok === false);
+
+    /* ---- range checks ---- */
+    isNull('a normal yield raises nothing', V.checkValue('yield', 3500));
+    ok('a 40 t/ha yield is an error, not a warning',
+       (V.checkValue('yield', 40000) || {}).severity === 'error');
+    ok('a yield of 30 kg/ha is flagged, but only as a warning -- a failed harvest is real',
+       (V.checkValue('yield', 30) || {}).severity === 'warning');
+    ok('a yield of 5 kg/ha is a hard error: that is a unit mistake, not a harvest',
+       (V.checkValue('yield', 5) || {}).severity === 'error');
+    ok('an unusual but possible yield is only a warning',
+       (V.checkValue('yield', 11500) || {}).severity === 'warning');
+    ok('every range documents the evidence that sets it',
+       Object.keys(V.RANGES).every(k => V.RANGES[k].why && V.RANGES[k].why.length > 40),
+       Object.keys(V.RANGES).filter(k => !V.RANGES[k].why).join(',') || 'all documented');
+    ok('every range is internally ordered min <= lo <= hi <= max',
+       Object.keys(V.RANGES).every(k => {
+         const r = V.RANGES[k];
+         return r.min <= r.lo && r.lo <= r.hi && r.hi <= r.max;
+       }));
+    ok('the FAO, CARD and van Oort milling rates all sit inside the accepted range',
+       [0.67, 0.667, 0.65].every(r => V.checkValue('millingRate', r) === null));
+
+    /* ---- the real data against its own range checks ----
+     *
+     * This is deliberately NOT "zero findings". Two country-years in FAOSTAT
+     * genuinely carry exports above production plus imports, and pretending
+     * otherwise would mean either loosening the check until it catches nothing
+     * or editing the source data. The contract is: exactly the known defects
+     * are reported, they are all of one understood kind, and nothing new has
+     * appeared. A third case showing up should fail this test and be looked at. */
+    const sweep = V.sweep('fao', { basis: 'milled' });
+    const nonBalance = sweep.errors.filter(e => !/domestic supply is negative/.test(e.message));
+    ok('FAOSTAT raises no range error other than the known broken balance sheets',
+       nonBalance.length === 0,
+       sweep.checked + ' countries checked, ' + sweep.errors.length + ' errors (' +
+       nonBalance.length + ' unexplained), ' + sweep.warnings.length + ' warnings' +
+       (nonBalance.length ? ' :: ' + nonBalance.slice(0, 3).map(e => e.message).join(' | ') : ''));
+    ok('and the broken balance sheets are exactly the two known country-years',
+       sweep.errors.length === 2,
+       sweep.errors.map(e => (e.context && e.context.iso3) + ' ' +
+                             (e.context && e.context.year)).join(', '));
+
+    const sweepU = V.sweep('usda', { basis: 'milled' });
+    ok('USDA PSD raises no range errors',
+       sweepU.errors.length === 0,
+       sweepU.checked + ' countries checked, ' + sweepU.errors.length + ' errors' +
+       (sweepU.errors.length ? ' :: ' + sweepU.errors.slice(0, 2).map(e => e.message).join(' | ') : ''));
+
+    // A catastrophic harvest is real data, not a unit error. Chad in the 1984
+    // Sahel drought took 1,000 t off 31,000 ha; the floor must sit below that.
+    ok('a drought-year yield of 48 kg/ha is a warning, not a hard error',
+       (V.checkValue('yield', 48) || {}).severity === 'warning',
+       JSON.stringify(V.checkValue('yield', 48) || null));
+
+    /* Yield bounds are quoted on a paddy basis. If the check did not convert a
+     * milled balance up before testing it, ~130 sound country-years would be
+     * flagged and the noise would bury any real unit error. */
+    ok('milled-basis yields are checked against paddy bounds after conversion',
+       sweep.warnings.filter(w => w.field === 'yield').length < 60,
+       sweep.warnings.filter(w => w.field === 'yield').length + ' yield warnings ' +
+       '(regression: was 131 when milled yields were tested against paddy bounds)');
+
+    /* FAOSTAT carries a small number of country-years where exports exceed
+     * production plus imports. These must be DETECTED and withheld, not turned
+     * into a negative self-sufficiency ratio and plotted. */
+    const ken = RSA.balance('fao', { kind: 'country', id: 'KEN' }, { basis: 'milled' });
+    const k92 = ken.years.indexOf(1992);
+    ok('Kenya 1992 is recognised as a broken balance sheet',
+       ken.brokenBalanceYears.some(b => b.year === 1992),
+       JSON.stringify(ken.brokenBalanceYears.map(b => b.year)));
+    isNull('and its apparent utilization is withheld rather than left negative',
+           ken.consumption[k92]);
+    ['ssr', 'idr', 'cpc'].forEach(id => {
+      isNull('Kenya 1992 ' + id + ' is null, not a negative percentage',
+             RSAIndicators.compute(id, ken).values[k92]);
+    });
+    ok('the withheld year is explained in a note the reader can see',
+       ken.notes.some(n => n.level === 'warning' && /1992/.test(n.text)),
+       ken.notes.filter(n => n.level === 'warning').map(n => n.text.slice(0, 60)).join(' | '));
+    ok('the underlying production and trade are still shown for that year',
+       ken.production[k92] > 0 && ken.exports[k92] > 0);
+
+    // And no country-year anywhere may carry a negative ratio.
+    let negRatios = 0;
+    ['fao', 'usda'].forEach(db => {
+      RSA.countries().forEach(c => {
+        const b = RSA.balance(db, { kind: 'country', id: c.iso3 }, { basis: 'milled' });
+        ['ssr', 'idr', 'cpc', 'ppc'].forEach(id => {
+          RSAIndicators.compute(id, b).values.forEach(v => { if (v != null && v < 0) negRatios++; });
+        });
+      });
+    });
+    ok('no indicator anywhere returns a negative value', negRatios === 0,
+       negRatios + ' negative values across both databases');
+
+    /* ---- error logging ---- */
+    V.clear();
+    const fallback = V.guard('test', () => { throw new Error('boom'); }, -1);
+    ok('a throwing calculation returns the fallback rather than propagating', fallback === -1);
+    ok('and the failure is logged with its reason',
+       V.entries('error').some(e => /boom/.test(e.message)),
+       (V.entries('error')[0] || {}).message || '(nothing logged)');
+    const inf = V.guard('test', () => 1 / 0, null);
+    ok('a non-finite result is treated as a failure, not returned as Infinity',
+       inf === null && V.counts().error === 2, JSON.stringify(V.counts()));
+    ok('a successful calculation is not logged',
+       V.guard('test', () => 42, null) === 42 && V.counts().error === 2);
+
+    // The log must be bounded: a failure inside a 55-country x 64-year loop
+    // must not be able to exhaust memory.
+    for (let i = 0; i < V.LOG_LIMIT + 50; i++) V.logInfo('flood', 'entry ' + i);
+    ok('the log is bounded but still reports the true total',
+       V.entries().length <= V.LOG_LIMIT && V.counts().total > V.LOG_LIMIT,
+       'retained ' + V.entries().length + ' of ' + V.counts().total);
+    V.clear();
+    ok('clearing the log resets both the buffer and the counter',
+       V.entries().length === 0 && V.counts().total === 0);
+  }
+
+  /* The AfricaRice / CARD country pages at riceforafrica.net are the reference
+   * this platform is most often checked against. They compute the same FAO
+   * ratio but take every trade term from INSIDE the food balance sheet rather
+   * than from the trade matrix, which is the entire reason the two disagree.
+   * These tests pin that reconciliation so it cannot silently drift. */
+  function testCard() {
+    group('reconciliation vs riceforafrica.net (CARD)');
+    const I = RSAIndicators;
+    const bal = iso => RSA.balance('fao', { kind: 'country', id: iso }, { basis: 'milled' });
+    const atYear = (b, ind, y) => {
+      const i = b.years.indexOf(y);
+      return i < 0 ? null : I.compute(ind, b).values[i];
+    };
+
+    // Published on the Senegal page: SSR 40.7% for 2023.
+    const sen = atYear(bal('SEN'), 'ssrFbs', 2023);
+    near('Senegal 2023 balance-sheet SSR reproduces the CARD figure of 40.7%', sen, 40.7, 0.1);
+
+    // Published on the Nigeria page: 99.9%, carried against the 2023 balance sheet.
+    const nga = atYear(bal('NGA'), 'ssrFbs', 2023);
+    near('Nigeria balance-sheet SSR reproduces the CARD figure of 99.9%', nga, 99.9, 0.1);
+
+    // Per-capita food supply is published directly and must match to the decimal.
+    near('Senegal 2023 per-capita food supply matches CARD (82.7 kg)',
+         atYear(bal('SEN'), 'cpcFood', 2023), 82.7, 0.5);
+    near('Nigeria per-capita food supply matches CARD (22.17 kg)',
+         atYear(bal('NGA'), 'cpcFood', 2023), 22.17, 0.2);
+
+    // Production and area come from the same FAOSTAT tables both sides use, so
+    // these must agree exactly, not approximately.
+    const senB = bal('SEN'), i24 = senB.years.indexOf(2024);
+    near('Senegal 2024 paddy production matches CARD exactly (1,580,000 t)',
+         senB.production[i24] / senB.millingRate, 1580000, 1);
+    near('Senegal 2024 harvested area matches CARD exactly (410,271 ha)',
+         senB.area[i24], 410271, 0.5);
+    const ngaB = bal('NGA'), n24 = ngaB.years.indexOf(2024);
+    near('Nigeria 2024 paddy production matches CARD exactly (9,129,900 t)',
+         ngaB.production[n24] / ngaB.millingRate, 9129900, 1);
+    near('Nigeria 2024 harvested area matches CARD exactly (4,572,900 ha)',
+         ngaB.area[n24], 4572900, 0.5);
+    const benB = bal('BEN'), b10 = benB.years.indexOf(2010);
+    near('Benin 2010 paddy production matches CARD exactly (124,975 t)',
+         benB.production[b10] / benB.millingRate, 124975, 1);
+
+    /* The trade-matrix SSR and the balance-sheet SSR are DIFFERENT numbers, and
+     * the platform must not pretend otherwise. Senegal 2023: 45.5% on the trade
+     * matrix, 40.7% on the balance sheet. Both are correct answers to different
+     * questions, and the gap is the thing worth reporting. */
+    const senMatrix = atYear(bal('SEN'), 'ssr', 2023);
+    ok('the trade-matrix and balance-sheet SSRs are reported as distinct series',
+       senMatrix != null && sen != null && Math.abs(senMatrix - sen) > 1,
+       'matrix ' + fmt(senMatrix) + '% vs balance sheet ' + fmt(sen) + '%');
+
+    // Benin has no current-release balance sheet, so the CARD-convention series
+    // must be honestly absent rather than quietly falling back to the matrix.
+    const benFbs = atYear(bal('BEN'), 'ssrFbs', 2023);
+    isNull('Benin 2023 balance-sheet SSR is null, because FAO has no 2023 FBS for Benin', benFbs);
+    const ben13 = atYear(bal('BEN'), 'ssrFbs', 2013);
+    ok('but Benin does carry the series while the historic release covers it',
+       ben13 != null && ben13 > 0 && ben13 < 100, fmt(ben13) + '% in 2013');
+
+    // The indicator must describe itself like every other one.
+    const d = I.get('ssrFbs');
+    ok('the CARD-convention indicator documents its equation, limits and source',
+       !!(d && d.equation && d.limitations && d.source && d.latex));
+  }
+
   /* ============================================ report generation and export */
 
   function testReport() {
@@ -1820,6 +2049,8 @@ const RSATests = (function () {
       testCondition();
       testVanOort();
       testDataDict();
+      testValidation();
+      testCard();
       testReport();
     } catch (err) {
       ok('suite completed without throwing', false, String(err && err.stack || err));

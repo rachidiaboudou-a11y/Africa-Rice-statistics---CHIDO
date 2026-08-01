@@ -383,8 +383,8 @@ footer p { margin: 4px 0; }
 </footer>
 
 <script>
-/* Rice Statistics for Africa -- bundled 2026-08-01 17:41:32 UTC, source at 85b71ce */
-const RSA_BUILD = { date: '2026-08-01', stamp: '2026-08-01 17:41:32 UTC', builtFrom: '85b71ce' };
+/* Rice Statistics for Africa -- bundled 2026-08-01 17:48:04 UTC, source at 0745f66 */
+const RSA_BUILD = { date: '2026-08-01', time: '17:48', stamp: '2026-08-01 17:48:04 UTC', builtFrom: '0745f66' };
 /* ===== rsa-i18n.js ========================================================= */
 /* Rice Statistics for Africa -- internationalisation (English / French).
  *
@@ -15338,7 +15338,11 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
     // this particular build, which is what tells a reader whether the figure in
     // front of them is current.
     const build = (typeof RSA_BUILD !== 'undefined') ? RSA_BUILD : null;
-    el.textContent = 'v' + RSA_VERSION + (build ? ' · ' + build.date : '');
+    // Date AND time on the badge itself. Two builds on the same day are common,
+    // and "is this the one from ten minutes ago?" is exactly the question the
+    // badge exists to answer. Seconds stay in the tooltip.
+    el.textContent = 'v' + RSA_VERSION +
+      (build ? ' · ' + build.date + (build.time ? ' ' + build.time + ' UTC' : '') : '');
     el.title = 'Rice Statistics for Africa v' + RSA_VERSION +
       (build ? '\nBuilt ' + build.stamp + '\nSource at build time: ' + build.builtFrom : '') +
       '\nData integrity: ' + sweep.checked + ' country balances checked, ' +

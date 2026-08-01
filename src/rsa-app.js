@@ -4145,7 +4145,11 @@
     // this particular build, which is what tells a reader whether the figure in
     // front of them is current.
     const build = (typeof RSA_BUILD !== 'undefined') ? RSA_BUILD : null;
-    el.textContent = 'v' + RSA_VERSION + (build ? ' · ' + build.date : '');
+    // Date AND time on the badge itself. Two builds on the same day are common,
+    // and "is this the one from ten minutes ago?" is exactly the question the
+    // badge exists to answer. Seconds stay in the tooltip.
+    el.textContent = 'v' + RSA_VERSION +
+      (build ? ' · ' + build.date + (build.time ? ' ' + build.time + ' UTC' : '') : '');
     el.title = 'Rice Statistics for Africa v' + RSA_VERSION +
       (build ? '\nBuilt ' + build.stamp + '\nSource at build time: ' + build.builtFrom : '') +
       '\nData integrity: ' + sweep.checked + ' country balances checked, ' +

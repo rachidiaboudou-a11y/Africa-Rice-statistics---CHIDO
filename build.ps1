@@ -56,6 +56,9 @@ if ($html -notmatch [regex]::Escape("<!-- @modules -->")) {
 
 $stamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
 $day   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
+# Minute precision for the badge: the second is in the tooltip, and a badge is
+# read at a glance rather than parsed.
+$time  = (Get-Date).ToUniversalTime().ToString("HH:mm")
 
 # A version number alone cannot tell a reader WHICH v1.0.0 they are looking at.
 # The version marks the methodology and changes rarely; the data and the fixes
@@ -73,7 +76,7 @@ if (-not $commit) { $commit = "unversioned" }
 $commit = $commit.Trim()
 
 $banner = "/* Rice Statistics for Africa -- bundled $stamp, source at $commit */" + [Environment]::NewLine +
-          "const RSA_BUILD = { date: '$day', stamp: '$stamp', builtFrom: '$commit' };"
+          "const RSA_BUILD = { date: '$day', time: '$time', stamp: '$stamp', builtFrom: '$commit' };"
 $script = "<script>" + [Environment]::NewLine + $banner + [Environment]::NewLine + $sb.ToString() + "</script>"
 
 $html = $html.Replace("<!-- @modules -->", $script)

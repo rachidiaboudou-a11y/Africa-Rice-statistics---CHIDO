@@ -140,6 +140,34 @@ const RSATests = (function () {
     group('edge cases');
     const I = RSAIndicators;
 
+    /* A selection the registry does not know must be REFUSED, not answered.
+     * balance() used to pass any string straight through as a member, so a
+     * typo'd ISO3 came back as a correctly-shaped series of nulls carrying the
+     * typo as its label -- indistinguishable, downstream, from a real country
+     * that happens to report nothing. */
+    const bogus = RSA.balance('fao', { kind: 'country', id: 'ZZZ' }, { basis: 'milled' });
+    ok('an unknown country code is rejected, not silently accepted',
+       bogus.selectionValid === false && bogus.members.length === 0 &&
+       bogus.unknownMembers.indexOf('ZZZ') >= 0,
+       'valid=' + bogus.selectionValid + ', members=' + bogus.members.length);
+    ok('the rejected selection says why, in a note the UI can show',
+       bogus.notes.some(n => n.level === 'error' && /ZZZ/.test(n.text)),
+       bogus.notes.map(n => n.level + ': ' + n.text).join(' | ') || '(no notes)');
+
+    const noRegion = RSA.balance('fao', { kind: 'region', id: 'Nowhere' }, { basis: 'milled' });
+    ok('an unknown region resolves to nothing and is flagged',
+       noRegion.selectionValid === false && noRegion.members.length === 0);
+
+    const mixed = RSA.balance('fao', { kind: 'custom', ids: ['BEN', 'ZZZ', 'SEN'] }, { basis: 'milled' });
+    ok('a custom group keeps its real members and drops the unknown one',
+       mixed.members.length === 2 && mixed.members.indexOf('ZZZ') < 0 &&
+       mixed.unknownMembers.length === 1 && mixed.selectionValid === false,
+       'members=' + mixed.members.join(',') + ' unknown=' + mixed.unknownMembers.join(','));
+
+    const real = RSA.balance('fao', { kind: 'country', id: 'BEN' }, { basis: 'milled' });
+    ok('a real selection is still marked valid', real.selectionValid === true &&
+       real.unknownMembers.length === 0);
+
     // Zero consumption must give null, never Infinity.
     const b0 = mkBal({ years: [2000], production: [0], imports: [0], exports: [0], population: [1000] });
     isNull('SSR is null when consumption is zero', I.compute('ssr', b0).values[0]);

@@ -111,17 +111,36 @@ const RSA = (function () {
   // Resolves a selection into a concrete list of ISO3 codes.
   //   {kind:'country', id:'BEN'}  {kind:'region', id:'Western Africa'}
   //   {kind:'bloc', id:'ECOWAS'}  {kind:'africa'}  {kind:'custom', ids:[...]}
-  function resolve(sel) {
-    if (!sel) return [];
+  /* Resolve a selection to member ISO3 codes, keeping only codes the registry
+   * actually knows. A typo'd code used to pass straight through, so balance()
+   * returned a correctly-shaped all-null series labelled with the typo -- a
+   * silent wrong answer rather than a refusal. Unknown members come back
+   * separately so the caller can say so instead of drawing an empty chart. */
+  function resolveDetailed(sel) {
+    if (!sel) return { members: [], unknown: [], validKind: false };
+    const known = id => state.registry.some(c => c.iso3 === id);
+    const sift = ids => {
+      const members = [], unknown = [];
+      ids.forEach(id => (known(id) ? members : unknown).push(id));
+      return { members: members, unknown: unknown, validKind: true };
+    };
     switch (sel.kind) {
-      case 'country': return [sel.id];
-      case 'region':  return state.registry.filter(c => c.region === sel.id).map(c => c.iso3);
-      case 'bloc':    return state.registry.filter(c => c.blocs.indexOf(sel.id) >= 0).map(c => c.iso3);
-      case 'africa':  return state.registry.map(c => c.iso3);
-      case 'custom':  return (sel.ids || []).slice();
-      default:        return [];
+      case 'country': return sift([sel.id]);
+      case 'custom':  return sift((sel.ids || []).slice());
+      case 'region': {
+        const m = state.registry.filter(c => c.region === sel.id).map(c => c.iso3);
+        return { members: m, unknown: m.length ? [] : [sel.id], validKind: true };
+      }
+      case 'bloc': {
+        const m = state.registry.filter(c => c.blocs.indexOf(sel.id) >= 0).map(c => c.iso3);
+        return { members: m, unknown: m.length ? [] : [sel.id], validKind: true };
+      }
+      case 'africa':  return { members: state.registry.map(c => c.iso3), unknown: [], validKind: true };
+      default:        return { members: [], unknown: [], validKind: false };
     }
   }
+
+  function resolve(sel) { return resolveDetailed(sel).members; }
 
   function selectionLabel(sel) {
     if (!sel) return '';
@@ -177,7 +196,8 @@ const RSA = (function () {
     opts = opts || {};
     const basis = BASES.indexOf(opts.basis) >= 0 ? opts.basis : 'asPublished';
     const rate = opts.millingRate > 0 ? opts.millingRate : DEFAULT_MILLING_RATE;
-    const isoList = resolve(sel);
+    const res = resolveDetailed(sel);
+    const isoList = res.members;
     const d = db(dbName);
     const years = d.years.slice();
     const n = years.length;
@@ -188,6 +208,10 @@ const RSA = (function () {
       selection: sel,
       label: selectionLabel(sel),
       members: isoList.slice(),
+      // Selection validity, so an empty chart can be explained rather than shown
+      // blank: `unknown` lists codes or group names the registry does not have.
+      unknownMembers: res.unknown.slice(),
+      selectionValid: res.validKind && res.unknown.length === 0 && isoList.length > 0,
       basis: basis,
       millingRate: rate,
       years: years,
@@ -208,6 +232,20 @@ const RSA = (function () {
       consumptionMethod: null,
       tradeItem: null
     };
+
+    if (!res.validKind) {
+      out.notes.push({
+        level: 'error',
+        text: 'Selection kind "' + (sel && sel.kind) + '" is not recognised, so no countries ' +
+              'were selected and every series below is empty.'
+      });
+    } else if (res.unknown.length) {
+      out.notes.push({
+        level: 'error',
+        text: 'Not in the registry, so excluded from this selection: ' + res.unknown.join(', ') +
+              '. Check the code against the list in RSA.countries().'
+      });
+    }
 
     /* Which FAOSTAT trade series to use.
      *
@@ -380,7 +418,9 @@ const RSA = (function () {
       }
     }
 
-    out.notes = basisNotes(dbName, basis, rate, stdTrade, usdaReported);
+    // Keep any selection-validity note raised above: it is the most important
+    // thing on the object when it fires, and assigning over it would drop it.
+    out.notes = out.notes.concat(basisNotes(dbName, basis, rate, stdTrade, usdaReported));
 
     if (out.derivedZeroProduction) {
       out.notes.push({

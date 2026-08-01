@@ -25,7 +25,12 @@ powershell -ExecutionPolicy Bypass -File .\serve.ps1
 Then open <http://localhost:8788/>. The server rebuilds `index.html` whenever a source module
 changes, and serves with `no-store` so a reload always reflects the last edit.
 
-Run the test suite at <http://localhost:8788/tests.html> — **425 tests**, all green.
+If port 8788 is unavailable — on Windows it can fall inside an administered exclusion range — pass
+another one: `.\serve.ps1 -Port 8790`, and read `8790` for `8788` below.
+
+Run the test suite at <http://localhost:8788/tests.html> — **447 tests**, all green.
+
+To publish the site to GitHub Pages, see [DEPLOY.md](DEPLOY.md).
 
 The hero carries an **original vector illustration** of lowland paddies at dawn — drawn rather than
 photographed because the platform is a single self-contained file with a no-external-request rule, so
@@ -534,6 +539,51 @@ consumer welfare on a staple food and about informal trade defeating high tariff
 
 **All cost parameters are placeholders, not national costings.** The composition of an optimal
 package is more informative than its price tag.
+
+---
+
+## Self-Sufficiency Condition
+
+Self-sufficiency is not a target to be forecast — it is a **condition** on the production frontier.
+A country or region is self-sufficient in year *t* when domestic supply meets domestic demand:
+
+```
+A_t × Y_t  ≥  cpc_t × N_t
+```
+
+Because population is taken from the UN projection and per-capita consumption from its own trend, the
+right-hand side is effectively given. The question the section answers is therefore precise: *what
+must happen on the left-hand side, by 2030, 2035, 2045 and 2050?*
+
+Four routes to the frontier are evaluated for every African country and region, each against its own
+ceiling:
+
+| Route | Lever | Ceiling |
+|---|---|---|
+| Yield only | raise yield, area unchanged | 2.5 × current yield (exploitable ceiling, after Cassman 2001) |
+| Area only | expand harvested area, yield unchanged | 3 × current area |
+| Improved varieties only | adoption × +30% yield | 80% of area — adoption cannot exceed the land |
+| Least-cost mix | all three, cost-minimising | every ceiling above, jointly |
+
+Each horizon reports the required production multiplier, which routes clear their ceiling, which do
+not, and **what is binding** when none do. "Impossible" is a first-class answer: for Benin at 2030 the
+variety route alone would need 1,515% adoption, and the section says so rather than returning a blank.
+
+Two things are worth stating explicitly, because they are easy to get wrong:
+
+- **The horizon is the horizon.** The optimiser evaluates the package at the year it is reported for.
+  An earlier version answered for the last horizon regardless, so a package that only reached 100% by
+  2050 was reported feasible at 2030. There is a regression test pinning this.
+- **The ceiling binds the resulting yield, not the levers.** Variety adoption and the productivity
+  lever compound multiplicatively, so bounding each separately is not enough: 80% adoption at +30%
+  stacked on +150% productivity implies 3.10 × baseline yield, above the 2.5 × ceiling the same table
+  reports as agronomically possible. The mix is now constrained on the product, which shifts the
+  burden onto land where land is available — Benin at 2030 needs 130% more area, not 80%. A second
+  regression test pins that too.
+
+Scanning all 55 countries across four horizons is genuine work, so it runs in chunks off the main
+thread with a progress bar and options-keyed caching; the panel paints in about 0.2 s rather than
+blocking for 7 s.
 
 ---
 

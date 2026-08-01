@@ -204,6 +204,13 @@ const RSAi18n = (function () {
                        fr: 'Afrique (tous les pays déclarants)' },
     'sel.ssa':       { en: 'Sub-Saharan Africa (SSA)',
                        fr: 'Afrique subsaharienne (ASS)' },
+    'unit.kgOnly':   { en: 'kg', fr: 'kg' },
+    'profile.noFbs': { en: 'no food balance sheet is published for this country',
+                       fr: 'aucun bilan alimentaire n’est publié pour ce pays' },
+    'profile.cpcInflated': {
+      en: 'Read the per-capita consumption of {0} kg ({1}) with care: it is APPARENT consumption, which treats every recorded import as if it were eaten here. Where rice is imported and then leaves again without being recorded as an export, that transit is counted as though the population ate it. FAO\'s own food balance sheet, which separates food use from total supply, gives {2}. The gap between the two is the size of the unrecorded re-export, not a difference of opinion about diet. The self-sufficiency ratio on this page inherits the same denominator; the balance-sheet variant is in the indicator list.',
+      fr: 'Lisez la consommation par habitant de {0} kg ({1}) avec prudence : il s’agit de la consommation APPARENTE, qui traite chaque importation enregistrée comme si elle était consommée sur place. Lorsque du riz est importé puis repart sans être enregistré comme exportation, ce transit est compté comme si la population l’avait mangé. Le bilan alimentaire de la FAO, qui distingue l’usage alimentaire de l’offre totale, donne {2}. L’écart entre les deux mesure l’ampleur de la réexportation non enregistrée, et non une divergence d’appréciation sur le régime alimentaire. Le taux d’autosuffisance de cette page repose sur le même dénominateur ; la variante fondée sur le bilan alimentaire figure dans la liste des indicateurs.'
+    },
     'kpi.apparentCons': { en: 'Apparent consumption', fr: 'Consommation apparente' },
     'fig.perCountry':   { en: 'most recent observed year per country',
                           fr: 'dernière année observée par pays' },

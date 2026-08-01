@@ -383,7 +383,7 @@ footer p { margin: 4px 0; }
 </footer>
 
 <script>
-/* Rice Statistics for Africa -- bundled 2026-08-01 16:43:53 UTC */
+/* Rice Statistics for Africa -- bundled 2026-08-01 17:03:29 UTC */
 /* ===== rsa-i18n.js ========================================================= */
 /* Rice Statistics for Africa -- internationalisation (English / French).
  *
@@ -591,6 +591,13 @@ const RSAi18n = (function () {
                        fr: 'Afrique (tous les pays déclarants)' },
     'sel.ssa':       { en: 'Sub-Saharan Africa (SSA)',
                        fr: 'Afrique subsaharienne (ASS)' },
+    'unit.kgOnly':   { en: 'kg', fr: 'kg' },
+    'profile.noFbs': { en: 'no food balance sheet is published for this country',
+                       fr: 'aucun bilan alimentaire n’est publié pour ce pays' },
+    'profile.cpcInflated': {
+      en: 'Read the per-capita consumption of {0} kg ({1}) with care: it is APPARENT consumption, which treats every recorded import as if it were eaten here. Where rice is imported and then leaves again without being recorded as an export, that transit is counted as though the population ate it. FAO\'s own food balance sheet, which separates food use from total supply, gives {2}. The gap between the two is the size of the unrecorded re-export, not a difference of opinion about diet. The self-sufficiency ratio on this page inherits the same denominator; the balance-sheet variant is in the indicator list.',
+      fr: 'Lisez la consommation par habitant de {0} kg ({1}) avec prudence : il s’agit de la consommation APPARENTE, qui traite chaque importation enregistrée comme si elle était consommée sur place. Lorsque du riz est importé puis repart sans être enregistré comme exportation, ce transit est compté comme si la population l’avait mangé. Le bilan alimentaire de la FAO, qui distingue l’usage alimentaire de l’offre totale, donne {2}. L’écart entre les deux mesure l’ampleur de la réexportation non enregistrée, et non une divergence d’appréciation sur le régime alimentaire. Le taux d’autosuffisance de cette page repose sur le même dénominateur ; la variante fondée sur le bilan alimentaire figure dans la liste des indicateurs.'
+    },
     'kpi.apparentCons': { en: 'Apparent consumption', fr: 'Consommation apparente' },
     'fig.perCountry':   { en: 'most recent observed year per country',
                           fr: 'dernière année observée par pays' },
@@ -11222,6 +11229,15 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
     if (Math.abs(x) >= 1e3) return (x / 1e3).toFixed(0) + ' kt';
     return Math.round(x) + ' t';
   }
+  /* Hectares, with the same magnitude prefixes as tonnes but the RIGHT unit.
+   * Area used to be passed to tonnes(), so Benin's 128,501 hectares displayed as
+   * "129 kt" -- a land area quoted as a weight. */
+  function hectares(x) {
+    if (x == null || !isFinite(x)) return '—';
+    if (Math.abs(x) >= 1e6) return (x / 1e6).toFixed(2) + ' Mha';
+    if (Math.abs(x) >= 1e3) return (x / 1e3).toFixed(0) + ' kha';
+    return Math.round(x) + ' ha';
+  }
   function usd1k(x) {
     if (x == null || !isFinite(x)) return '—';
     const v = x * 1000;
@@ -11920,13 +11936,46 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
     const kp = h('div', { class: 'kpis' });
     ids.forEach(id => {
       const r = I.compute(id, b), last = lastOf(r);
+      // Each unit formatted as its own unit. Area used to share the tonnes
+      // branch, and yield fell through to a bare number with no unit at all.
       const v = last ? (r.unit === '%' ? f(last.value) + '%'
-        : r.unit === 't' || r.unit === 'ha' ? tonnes(last.value)
-        : r.unit === 'kg/capita' ? f(last.value) + ' kg'
+        : r.unit === 't' ? tonnes(last.value)
+        : r.unit === 'ha' ? hectares(last.value)
+        : r.unit === 'kg/ha' ? f(last.value, 0) + ' ' + I.unitLabel('kg/ha')
+        : r.unit === 'kg/capita' ? f(last.value) + ' ' + T('unit.kgOnly')
         : f(last.value)) : '—';
       kp.appendChild(kpi(I.get(id).label, v, last && last.year, 'observed'));
     });
     el.appendChild(kp);
+
+    /* Apparent consumption counts every recorded import as if it were eaten in
+     * the country. Where a large share is re-exported without being recorded as
+     * an export, the per-capita figure becomes a measurement artefact rather
+     * than a diet: Benin comes out at 146 kg a head, roughly what Bangladesh
+     * eats, while FAO's own balance sheet puts Beninese rice consumption at
+     * 53 kg. The number is arithmetically correct and substantively wrong, so it
+     * must never appear on its own. */
+    const cpcNow = lastOf(I.compute('cpc', b));
+    const fb = (function () { try { return RSA.foodBalance(b.selection, { basis: b.basis }); } catch (e) { return null; } })();
+    let fbLast = null;
+    if (fb && fb.available && fb.foodPerCapita) {
+      for (let i = fb.foodPerCapita.length - 1; i >= 0; i--) {
+        if (fb.foodPerCapita[i] != null) { fbLast = { year: fb.years[i], value: fb.foodPerCapita[i] }; break; }
+      }
+    }
+    if (cpcNow && cpcNow.value != null) {
+      const implausible = cpcNow.value > 120;
+      const farAboveFood = fbLast && cpcNow.value > fbLast.value * 1.6;
+      if (implausible || farAboveFood) {
+        el.appendChild(note('warning',
+          T('profile.cpcInflated')
+            .replace('{0}', RSAi18n.num(cpcNow.value, 1))
+            .replace('{1}', cpcNow.year)
+            .replace('{2}', fbLast ? RSAi18n.num(fbLast.value, 1) + ' kg (' + fbLast.year + ')'
+                                   : T('profile.noFbs'))));
+      }
+    }
+
     b.notes.forEach(n => el.appendChild(note(n.level, n.text)));
 
     // diagnosis

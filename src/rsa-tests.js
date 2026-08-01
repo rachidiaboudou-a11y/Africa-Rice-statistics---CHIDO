@@ -1754,6 +1754,53 @@ const RSATests = (function () {
        typeof RSAi18n.auditRendered === 'function');
   }
 
+  /* ================================= units on screen, and the Benin CPC trap */
+
+  function testDisplayUnits() {
+    group('display units and the apparent-consumption caveat');
+    const I = RSAIndicators;
+    const b = RSA.balance('fao', { kind: 'country', id: 'BEN' }, { basis: 'milled' });
+    const i = b.years.indexOf(2024);
+
+    /* Area is a LAND AREA. It used to be routed through the tonnes formatter, so
+     * Benin's 128,501 hectares was displayed as "129 kt" -- an area quoted as a
+     * weight, on the headline tile of the country profile. */
+    ok('area carries the hectare unit, not tonnes', I.get('area').unit === 'ha');
+    ok('yield carries kg/ha', I.get('yield').unit === 'kg/ha');
+    ok('production carries tonnes', I.get('production').unit === 't');
+    near('Benin 2024 area is 128,501 ha, which is 129 kha and not 129 kt',
+         b.area[i], 128501, 1);
+
+    /* Benin's apparent consumption per head is arithmetically right and
+     * substantively wrong: 146 kg is roughly what Bangladesh eats, while FAO's
+     * balance sheet puts Beninese rice consumption at 53 kg. The difference is
+     * rice that transits to Nigeria without being recorded as an export. The
+     * platform must be able to detect this rather than presenting it bare. */
+    const cpc = I.compute('cpc', b).values[i];
+    ok('Benin apparent per-capita consumption is above 120 kg, so it trips the caveat',
+       cpc > 120, fmt(cpc) + ' kg');
+    const fb = RSA.foodBalance({ kind: 'country', id: 'BEN' }, { basis: 'milled' });
+    let fbLast = null;
+    if (fb && fb.available) {
+      for (let k = fb.foodPerCapita.length - 1; k >= 0; k--) {
+        if (fb.foodPerCapita[k] != null) { fbLast = fb.foodPerCapita[k]; break; }
+      }
+    }
+    ok('and the food balance sheet gives a far lower figure to contrast it with',
+       fbLast != null && fbLast < 70 && cpc > fbLast * 2,
+       'apparent ' + fmt(cpc) + ' kg vs food use ' + fmt(fbLast) + ' kg');
+
+    // The indicator itself must warn about this in its own documentation.
+    ok('the CPC indicator documents the re-export distortion',
+       /re-export|Benin/i.test(I.get('cpc').limitations || ''));
+
+    // A country without the distortion must NOT trip it.
+    const ng = RSA.balance('fao', { kind: 'country', id: 'NGA' }, { basis: 'milled' });
+    const ncpc = I.compute('cpc', ng).values[ng.years.indexOf(2024)];
+    ok('Nigeria, which does not re-export, stays well under the threshold',
+       ncpc < 120, fmt(ncpc) + ' kg');
+  }
+
   /* ============================= SSA aggregate and the single SSR definition */
 
   function testSsaAndSsr() {
@@ -2349,6 +2396,7 @@ const RSATests = (function () {
       testCondition();
       testVanOort();
       testDataDict();
+      testDisplayUnits();
       testSsaAndSsr();
       testAdvisor();
       testLanguageOutput();

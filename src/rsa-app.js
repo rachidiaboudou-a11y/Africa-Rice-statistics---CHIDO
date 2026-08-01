@@ -79,6 +79,15 @@
     if (Math.abs(x) >= 1e3) return (x / 1e3).toFixed(0) + ' kt';
     return Math.round(x) + ' t';
   }
+  /* Hectares, with the same magnitude prefixes as tonnes but the RIGHT unit.
+   * Area used to be passed to tonnes(), so Benin's 128,501 hectares displayed as
+   * "129 kt" -- a land area quoted as a weight. */
+  function hectares(x) {
+    if (x == null || !isFinite(x)) return '—';
+    if (Math.abs(x) >= 1e6) return (x / 1e6).toFixed(2) + ' Mha';
+    if (Math.abs(x) >= 1e3) return (x / 1e3).toFixed(0) + ' kha';
+    return Math.round(x) + ' ha';
+  }
   function usd1k(x) {
     if (x == null || !isFinite(x)) return '—';
     const v = x * 1000;
@@ -777,13 +786,46 @@
     const kp = h('div', { class: 'kpis' });
     ids.forEach(id => {
       const r = I.compute(id, b), last = lastOf(r);
+      // Each unit formatted as its own unit. Area used to share the tonnes
+      // branch, and yield fell through to a bare number with no unit at all.
       const v = last ? (r.unit === '%' ? f(last.value) + '%'
-        : r.unit === 't' || r.unit === 'ha' ? tonnes(last.value)
-        : r.unit === 'kg/capita' ? f(last.value) + ' kg'
+        : r.unit === 't' ? tonnes(last.value)
+        : r.unit === 'ha' ? hectares(last.value)
+        : r.unit === 'kg/ha' ? f(last.value, 0) + ' ' + I.unitLabel('kg/ha')
+        : r.unit === 'kg/capita' ? f(last.value) + ' ' + T('unit.kgOnly')
         : f(last.value)) : '—';
       kp.appendChild(kpi(I.get(id).label, v, last && last.year, 'observed'));
     });
     el.appendChild(kp);
+
+    /* Apparent consumption counts every recorded import as if it were eaten in
+     * the country. Where a large share is re-exported without being recorded as
+     * an export, the per-capita figure becomes a measurement artefact rather
+     * than a diet: Benin comes out at 146 kg a head, roughly what Bangladesh
+     * eats, while FAO's own balance sheet puts Beninese rice consumption at
+     * 53 kg. The number is arithmetically correct and substantively wrong, so it
+     * must never appear on its own. */
+    const cpcNow = lastOf(I.compute('cpc', b));
+    const fb = (function () { try { return RSA.foodBalance(b.selection, { basis: b.basis }); } catch (e) { return null; } })();
+    let fbLast = null;
+    if (fb && fb.available && fb.foodPerCapita) {
+      for (let i = fb.foodPerCapita.length - 1; i >= 0; i--) {
+        if (fb.foodPerCapita[i] != null) { fbLast = { year: fb.years[i], value: fb.foodPerCapita[i] }; break; }
+      }
+    }
+    if (cpcNow && cpcNow.value != null) {
+      const implausible = cpcNow.value > 120;
+      const farAboveFood = fbLast && cpcNow.value > fbLast.value * 1.6;
+      if (implausible || farAboveFood) {
+        el.appendChild(note('warning',
+          T('profile.cpcInflated')
+            .replace('{0}', RSAi18n.num(cpcNow.value, 1))
+            .replace('{1}', cpcNow.year)
+            .replace('{2}', fbLast ? RSAi18n.num(fbLast.value, 1) + ' kg (' + fbLast.year + ')'
+                                   : T('profile.noFbs'))));
+      }
+    }
+
     b.notes.forEach(n => el.appendChild(note(n.level, n.text)));
 
     // diagnosis

@@ -2065,7 +2065,7 @@
       ]) },
       { type: 'table', caption: 'Reproducibility', columns: ['Field', 'Value'],
         rows: [['Platform', 'Rice Statistics for Africa v' + RSA_VERSION +
-                    (typeof RSA_BUILD !== 'undefined' ? ' (built ' + RSA_BUILD.date + ', ' + RSA_BUILD.commit + ')' : '')],
+                    (typeof RSA_BUILD !== 'undefined' ? ' (built ' + RSA_BUILD.stamp + ', source ' + RSA_BUILD.builtFrom + ')' : '')],
                ['Database', bal().db], ['Basis', S.basis],
                ['Yield ceiling', opts.maxYieldFactor + '× current'],
                ['Area ceiling', opts.maxAreaFactor + '× current'],
@@ -2471,7 +2471,7 @@
       ] },
       { type: 'table', caption: T('crisis.repManifest'), columns: ['Field', 'Value'],
         rows: [['Platform', 'Rice Statistics for Africa v' + RSA_VERSION +
-                    (typeof RSA_BUILD !== 'undefined' ? ' (built ' + RSA_BUILD.date + ', ' + RSA_BUILD.commit + ')' : '')],
+                    (typeof RSA_BUILD !== 'undefined' ? ' (built ' + RSA_BUILD.stamp + ', source ' + RSA_BUILD.builtFrom + ')' : '')],
                ['Selection', b.label], ['Database', b.db], ['Basis', b.basis],
                ['Trade series', 'FAOSTAT item ' + (b.tradeItem || '—')],
                ['Data extracted', prov.extracted],
@@ -3269,7 +3269,7 @@
       ]) },
       { type: 'table', caption: 'Reproducibility', columns: ['Field', 'Value'],
         rows: [['Platform', 'Rice Statistics for Africa v' + RSA_VERSION +
-                    (typeof RSA_BUILD !== 'undefined' ? ' (built ' + RSA_BUILD.date + ', ' + RSA_BUILD.commit + ')' : '')],
+                    (typeof RSA_BUILD !== 'undefined' ? ' (built ' + RSA_BUILD.stamp + ', source ' + RSA_BUILD.builtFrom + ')' : '')],
                ['Model', 'van Oort et al. (2015)'],
                ['Milling rate', String(RSAVanOort.MILLING_RATE)],
                ['Database', bal().db], ['Target year', String(year)],
@@ -4124,7 +4124,7 @@
       prov.sources.map(s => s.db + ' ' + s.published).join(' · ') +
       ' · v' + RSA_VERSION +
       (typeof RSA_BUILD !== 'undefined'
-        ? ' · ' + T('foot.built') + ' ' + RSA_BUILD.date + ' (' + RSA_BUILD.commit + ')' : '') +
+        ? ' · ' + T('foot.built') + ' ' + RSA_BUILD.stamp : '') +
       ' · ' + (cov.language === 'fr' ? 'français' : 'English') + ' ' + cov.pct + '%';
   }
 
@@ -4147,7 +4147,7 @@
     const build = (typeof RSA_BUILD !== 'undefined') ? RSA_BUILD : null;
     el.textContent = 'v' + RSA_VERSION + (build ? ' · ' + build.date : '');
     el.title = 'Rice Statistics for Africa v' + RSA_VERSION +
-      (build ? '\nBuilt ' + build.stamp + ' from commit ' + build.commit : '') +
+      (build ? '\nBuilt ' + build.stamp + '\nSource at build time: ' + build.builtFrom : '') +
       '\nData integrity: ' + sweep.checked + ' country balances checked, ' +
       errs + ' range error(s), ' + warns + ' warning(s).' +
       (errs ? '\nErrors are country-years where the source reports exports above production ' +

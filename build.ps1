@@ -57,18 +57,23 @@ if ($html -notmatch [regex]::Escape("<!-- @modules -->")) {
 $stamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
 $day   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
 
-# The commit this bundle was built from. A version number alone cannot tell a
-# reader WHICH v1.0.0 they are looking at -- the version changes when the
-# methodology changes, but the data and the fixes change far more often. The
-# build date answers "is what I am reading current?", which is the question
-# someone checking a figure actually has.
+# A version number alone cannot tell a reader WHICH v1.0.0 they are looking at.
+# The version marks the methodology and changes rarely; the data and the fixes
+# change far more often, and the question someone actually has after a deploy is
+# "is this current, or is my browser showing me last week's bundle?" The
+# timestamp answers that, to the second.
+#
+# `builtFrom` is the commit that was checked out WHEN THE BUNDLE WAS BUILT, i.e.
+# the parent of the commit that will contain it. It cannot be the bundle's own
+# hash: writing the hash into the file changes the file, which changes the hash.
+# It is named for what it is rather than labelled "commit" and quietly off by one.
 $commit = ""
 try { $commit = (& git -C $root rev-parse --short HEAD 2>$null) } catch { }
 if (-not $commit) { $commit = "unversioned" }
 $commit = $commit.Trim()
 
-$banner = "/* Rice Statistics for Africa -- bundled $stamp from $commit */" + [Environment]::NewLine +
-          "const RSA_BUILD = { date: '$day', stamp: '$stamp', commit: '$commit' };"
+$banner = "/* Rice Statistics for Africa -- bundled $stamp, source at $commit */" + [Environment]::NewLine +
+          "const RSA_BUILD = { date: '$day', stamp: '$stamp', builtFrom: '$commit' };"
 $script = "<script>" + [Environment]::NewLine + $banner + [Environment]::NewLine + $sb.ToString() + "</script>"
 
 $html = $html.Replace("<!-- @modules -->", $script)

@@ -244,7 +244,10 @@ const RSAIndicators = (function () {
         'near 150 kg/capita -- far above plausible dietary intake -- once its re-exports to Nigeria ' +
         'stopped being captured in the export column.',
       source: 'FAO (2001); Gassi, Gul & Cetin (2025), eq. 2',
-      compute: b => mapPair(b.consumption, b.population, (c, n) => safeDiv(1000 * c, n))
+      // Same guard as SSR and IDR: a negative apparent utilization is not a
+      // negative amount of rice eaten, it is an unusable balance sheet.
+      compute: b => mapPair(b.consumption, b.population,
+        (c, n) => (c > 0 ? safeDiv(1000 * c, n) : null))
     },
 
     ssr: {
@@ -273,10 +276,11 @@ const RSAIndicators = (function () {
         'exchange may be perfectly food-secure (Clapp 2017). On the as-published basis the ratio is ' +
         'not unit-consistent and is biased upward.',
       source: 'FAO (2001); Gassi, Gul & Cetin (2025), eq. 4',
-      compute: b => mapPair(b.production, b.consumption, (p, c) => {
-        const r = safeDiv(100 * p, c);
-        return r;
-      })
+      /* Routed through RSA.selfSufficiency so the formula exists in exactly one
+       * place. Consumption here IS P + M - X, already withheld by balance()
+       * where it came out non-positive, so this reduces to 100 x P / C. */
+      compute: b => mapPair(b.production, b.consumption,
+        (p, c) => RSA.selfSufficiency(p, c - p, 0))
     },
 
     idr: {
@@ -296,7 +300,12 @@ const RSAIndicators = (function () {
         'countries: imports can be larger than what stays in the country. SSR + IDR = 100% only when ' +
         'exports are zero. Benin 2010 (IDR 351.71%) is the standard illustration.',
       source: 'FAO (2001); Gassi, Gul & Cetin (2025), eq. 3',
-      compute: b => mapPair(b.imports, b.consumption, (m, c) => safeDiv(100 * m, c))
+      /* Shares SSR's denominator, so it must share SSR's guard. A non-positive
+       * apparent utilization made this return -69.0% for Kenya in 1992 while the
+       * SSR beside it was correctly blank -- the two indicators disagreeing about
+       * whether the same balance sheet was usable. */
+      compute: b => mapPair(b.imports, b.consumption,
+        (m, c) => (c > 0 ? safeDiv(100 * m, c) : null))
     },
 
     /* ---- food-balance-sheet measures ----
@@ -411,10 +420,8 @@ const RSAIndicators = (function () {
         const M = fbsSeries(b, 'imports');
         const X = fbsSeries(b, 'exports');
         const out = new Array(b.years.length).fill(null);
-        for (let i = 0; i < out.length; i++) {
-          if (P[i] == null || M[i] == null) continue;
-          out[i] = safeDiv(100 * P[i], P[i] + M[i] - (X[i] || 0));
-        }
+        // Same canonical function as `ssr`; only the source of the terms differs.
+        for (let i = 0; i < out.length; i++) out[i] = RSA.selfSufficiency(P[i], M[i], X[i]);
         return out;
       }
     },

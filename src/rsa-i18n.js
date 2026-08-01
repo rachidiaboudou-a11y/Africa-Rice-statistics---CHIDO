@@ -202,6 +202,8 @@ const RSAi18n = (function () {
     },
     'sel.africa':    { en: 'Africa (all reporting countries)',
                        fr: 'Afrique (tous les pays déclarants)' },
+    'sel.ssa':       { en: 'Sub-Saharan Africa (SSA)',
+                       fr: 'Afrique subsaharienne (ASS)' },
     'kpi.apparentCons': { en: 'Apparent consumption', fr: 'Consommation apparente' },
     'fig.perCountry':   { en: 'most recent observed year per country',
                           fr: 'dernière année observée par pays' },

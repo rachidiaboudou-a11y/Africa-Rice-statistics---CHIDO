@@ -2570,7 +2570,8 @@
       const rowsFor = (kind) => {
         const items = kind === 'regions'
           ? RSA.regions().map(r => ({ label: r, sel: { kind: 'region', id: r } }))
-              .concat([{ label: T('sel.africa'), sel: { kind: 'africa' } }])
+              .concat([{ label: T('sel.ssa'), sel: { kind: 'ssa' } },
+                       { label: T('sel.africa'), sel: { kind: 'africa' } }])
           : RSA.countries().map(c => ({ label: c.name, iso: c.iso3,
                                         sel: { kind: 'country', id: c.iso3 } }));
         return items.map(it => {
@@ -2655,6 +2656,7 @@
     };
     RSA.countries().forEach(c => emit('country', c.iso3, c.nameEn || c.name, { kind: 'country', id: c.iso3 }));
     RSA.regions().forEach(r => emit('region', r, r, { kind: 'region', id: r }));
+    emit('aggregate', 'SSA', 'Sub-Saharan Africa', { kind: 'ssa' });
     emit('continent', 'AFR', 'Africa (all reporting countries)', { kind: 'africa' });
     downloadText(L.join('\n'), 'rsa-trends-' + id + '.csv', 'text/csv');
   }
@@ -2678,20 +2680,29 @@
     const OBSERVED = { production: 1, area: 1, yield: 1, imports: 1, exports: 1,
                        importValue: 1, exportValue: 1, population: 1, cpcFood: 1,
                        foodUse: 1, kcalRice: 1 };
-    RSA.countries().forEach(c => {
-      const b = bal({ kind: 'country', id: c.iso3 });
+    // Countries, then every aggregate, so a reader can check a regional figure
+    // without re-deriving it. Aggregates carry their scope in the region column.
+    const emit = (code, name, region, sel) => {
+      const b = bal(sel);
       ids.forEach(id => {
         const d = I.get(id);
         if (!d) return;
         const r = I.compute(id, b);
         r.values.forEach((v, i) => {
           if (v == null || !isFinite(v)) return;
-          L.push([c.iso3, q(c.name), q(c.region), r.years[i], id, Math.round(v * 1e6) / 1e6,
+          L.push([code, q(name), q(region), r.years[i], id, Math.round(v * 1e6) / 1e6,
                   q(r.unit), OBSERVED[id] ? 'observed' : 'derived',
                   q(d.fbs ? 'FAOSTAT FBS' : b.db)].join(','));
         });
       });
-    });
+    };
+    RSA.countries().forEach(c => emit(c.iso3, c.name, c.region, { kind: 'country', id: c.iso3 }));
+    RSA.regions().forEach(r => emit('RG-' + r.replace(/\s+/g, '').slice(0, 6).toUpperCase(),
+                                    r, 'UN subregion', { kind: 'region', id: r }));
+    RSA.blocs().forEach(bl => emit('BL-' + bl.id, bl.label, 'Regional bloc',
+                                   { kind: 'bloc', id: bl.id }));
+    emit('SSA', 'Sub-Saharan Africa', 'Aggregate', { kind: 'ssa' });
+    emit('AFR', 'Africa (all reporting countries)', 'Continent', { kind: 'africa' });
     downloadText(L.join('\n'), 'rsa-all-series-long.csv', 'text/csv');
   }
 
@@ -3895,7 +3906,8 @@
     const sel = $('#c-sel');
     const want = S.sel.kind === 'country' ? 'c:' + S.sel.id
       : S.sel.kind === 'region' ? 'r:' + S.sel.id
-      : S.sel.kind === 'bloc' ? 'b:' + S.sel.id : 'a:';
+      : S.sel.kind === 'bloc' ? 'b:' + S.sel.id
+      : S.sel.kind === 'ssa' ? 's:' : 'a:';
     sel.value = want;
   }
 
@@ -3904,6 +3916,10 @@
     sel.innerHTML = '';
     const gA = h('optgroup', { label: 'Aggregate' });
     gA.appendChild(h('option', { value: 'a:', text: T('sel.africa') }));
+    // Sub-Saharan Africa is the scope nearly every published rice figure uses,
+    // because Egypt distorts the continental averages. Offered beside Africa
+    // rather than instead of it.
+    gA.appendChild(h('option', { value: 's:', text: T('sel.ssa') }));
     sel.appendChild(gA);
     const gR = h('optgroup', { label: 'UN subregion' });
     RSA.regions().forEach(r => gR.appendChild(h('option', { value: 'r:' + r, text: r })));
@@ -3921,7 +3937,8 @@
       const v = sel.value, k = v.slice(0, 1), id = v.slice(2);
       S.sel = k === 'c' ? { kind: 'country', id: id }
         : k === 'r' ? { kind: 'region', id: id }
-        : k === 'b' ? { kind: 'bloc', id: id } : { kind: 'africa' };
+        : k === 'b' ? { kind: 'bloc', id: id }
+        : k === 's' ? { kind: 'ssa' } : { kind: 'africa' };
       invalidate(); go(S.tab);
     });
   }

@@ -190,13 +190,17 @@ const RSATests = (function () {
     isNull('missing production gives missing SSR', I.compute('ssr', bn).values[0]);
     isNull('missing imports gives missing IDR', I.compute('idr', bn).values[1]);
 
-    // Negative consumption -- possible when exports exceed production plus imports
-    // in the raw data. SSR then goes negative, which is meaningless; it must not
-    // silently look like a plausible percentage.
+    /* Exports above production plus imports -- which FAOSTAT really does carry,
+     * for Kenya in 1992 and Eswatini in 1968. This test used to require a
+     * NEGATIVE SSR, on the reasoning that an absurd number is at least visibly
+     * absurd. That was the wrong call: a negative ratio still got plotted, and
+     * "-34.3%" reads as data. The balance sheet is unusable, so the whole family
+     * of ratios resting on it is withheld and the reason stated in a note. */
     const bneg = mkBal({ years: [2000], production: [100], imports: [50], exports: [500], population: [1000] });
-    const s = I.compute('ssr', bneg).values[0];
-    ok('negative apparent consumption yields a negative SSR rather than a plausible-looking one',
-       s != null && s < 0, 'SSR = ' + fmt(s));
+    isNull('a balance sheet with exports above supply yields no SSR at all',
+           I.compute('ssr', bneg).values[0]);
+    isNull('and no IDR either -- they share the broken denominator',
+           I.compute('idr', bneg).values[0]);
 
     // Consumption exactly balanced.
     const beq = mkBal({ years: [2000], production: [1000], imports: [500], exports: [500], population: [1000] });
@@ -1750,6 +1754,89 @@ const RSATests = (function () {
        typeof RSAi18n.auditRendered === 'function');
   }
 
+  /* ============================= SSA aggregate and the single SSR definition */
+
+  function testSsaAndSsr() {
+    group('sub-Saharan Africa and the canonical SSR');
+    const I = RSAIndicators;
+
+    /* SSR must exist ONCE. Every module that reports it has to go through
+     * RSA.selfSufficiency, or the platform can disagree with itself. */
+    ok('a canonical self-sufficiency function is exported',
+       typeof RSA.selfSufficiency === 'function');
+    near('it implements FAO (2001): 100 x P / (P + M - X)',
+         RSA.selfSufficiency(670, 330, 0), 67, 1e-9);
+    near('a missing export figure counts as zero',
+         RSA.selfSufficiency(670, 330, null), 67, 1e-9);
+    near('exports reduce the denominator',
+         RSA.selfSufficiency(500, 500, 500), 100, 1e-9);
+    isNull('a non-positive denominator returns null, never a negative percentage',
+           RSA.selfSufficiency(100, 50, 500));
+    isNull('a zero denominator returns null', RSA.selfSufficiency(0, 0, 0));
+    isNull('a missing production returns null', RSA.selfSufficiency(null, 100, 0));
+
+    // The indicator and the canonical function must not drift apart.
+    let drift = 0, checked = 0;
+    RSA.countries().forEach(c => {
+      const b = RSA.balance('fao', { kind: 'country', id: c.iso3 }, { basis: 'milled' });
+      const v = I.compute('ssr', b).values;
+      for (let i = 0; i < v.length; i++) {
+        const p = b.production[i], m = b.imports[i], x = b.exports[i];
+        if (p == null || m == null) continue;
+        const canon = RSA.selfSufficiency(p, m, x);
+        checked++;
+        if (v[i] == null && canon == null) continue;
+        if (v[i] == null || canon == null || Math.abs(v[i] - canon) > 1e-9) drift++;
+      }
+    });
+    ok('the SSR indicator agrees with the canonical function everywhere',
+       drift === 0, checked + ' country-years checked, ' + drift + ' disagreements');
+
+    /* ---- Sub-Saharan Africa ---- */
+    const ssa = RSA.balance('fao', { kind: 'ssa' }, { basis: 'milled' });
+    const afr = RSA.balance('fao', { kind: 'africa' }, { basis: 'milled' });
+    ok('SSA resolves to a valid selection', ssa.selectionValid === true);
+    ok('SSA excludes Northern Africa',
+       ssa.members.indexOf('EGY') < 0 && ssa.members.indexOf('MAR') < 0 &&
+       ssa.members.indexOf('DZA') < 0 && ssa.members.indexOf('TUN') < 0,
+       ssa.members.length + ' members');
+    ok('SSA keeps the sub-Saharan countries',
+       ['NGA', 'SEN', 'BEN', 'MLI', 'TZA', 'MDG'].every(x => ssa.members.indexOf(x) >= 0));
+    ok('SSA is smaller than Africa but not by much',
+       ssa.members.length < afr.members.length && ssa.members.length > 40,
+       ssa.members.length + ' of ' + afr.members.length);
+
+    /* SSA production must equal Africa less Northern Africa, exactly. This is the
+     * figure published sources quote: CARD report 38.34 Mt of paddy for SSA in
+     * 2024, and Egypt is why the continental number is six million tonnes higher. */
+    const nor = RSA.balance('fao', { kind: 'region', id: 'Northern Africa' }, { basis: 'milled' });
+    const i24 = ssa.years.indexOf(2024);
+    near('SSA production = Africa minus Northern Africa, exactly',
+         ssa.production[i24], afr.production[i24] - nor.production[i24], 1e-6);
+    const paddy = ssa.production[i24] / ssa.millingRate;
+    ok('SSA 2024 paddy production matches the published 38.34 Mt',
+       Math.abs(paddy / 1e6 - 38.34) < 0.5, fmt(paddy / 1e6) + ' Mt');
+
+    // Egypt is the reason the two scopes differ, so the ratios must differ too.
+    const ssaSsr = I.compute('ssr', ssa).values[i24];
+    const afrSsr = I.compute('ssr', afr).values[i24];
+    ok('SSA self-sufficiency is lower than the continental figure',
+       ssaSsr < afrSsr, 'SSA ' + fmt(ssaSsr) + '% vs Africa ' + fmt(afrSsr) + '%');
+
+    ok('SSA carries a localised label',
+       RSA.selectionLabel({ kind: 'ssa' }).indexOf('Sub-Saharan') >= 0,
+       RSA.selectionLabel({ kind: 'ssa' }));
+
+    // It must work end to end, not merely resolve.
+    ok('every indicator computes on SSA without throwing', (function () {
+      try { I.list().forEach(d => I.compute(d.id, ssa)); return true; } catch (e) { return false; }
+    })());
+    const base = RSAScenarios.baseline(ssa, 2040, {});
+    ok('the scenario engine accepts SSA', base.ok === true, base.ok ? '' : base.reason);
+    const adv = RSAAdvisor.diagnose(ssa, {});
+    ok('the policy advisor accepts SSA', adv.ok === true && adv.causes.length > 0);
+  }
+
   /* ==================================================== guided policy analysis */
 
   function testAdvisor() {
@@ -2262,6 +2349,7 @@ const RSATests = (function () {
       testCondition();
       testVanOort();
       testDataDict();
+      testSsaAndSsr();
       testAdvisor();
       testLanguageOutput();
       testValidation();

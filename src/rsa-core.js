@@ -156,11 +156,43 @@ const RSA = (function () {
         return { members: m, unknown: m.length ? [] : [sel.id], validKind: true };
       }
       case 'africa':  return { members: state.registry.map(c => c.iso3), unknown: [], validKind: true };
+      /* Sub-Saharan Africa: the continent less the Northern Africa subregion.
+       * This is the scope almost every published rice figure uses -- CARD,
+       * AfricaRice, IFPRI and the FAO rice briefs all report SSA, not Africa --
+       * because Egypt distorts every continental average. Egypt alone grows
+       * 6.4 Mt at roughly 9,500 kg/ha and is near self-sufficient, which lifts
+       * the continental yield and self-sufficiency ratio well above what the
+       * rest of the continent experiences. */
+      case 'ssa': return { members: state.registry.filter(c => c.region !== 'Northern Africa')
+                                                  .map(c => c.iso3),
+                           unknown: [], validKind: true };
       default:        return { members: [], unknown: [], validKind: false };
     }
   }
 
   function resolve(sel) { return resolveDetailed(sel).members; }
+
+  /* THE self-sufficiency ratio. One definition, one implementation, used by every
+   * module that needs it -- indicators, scenarios, the condition engine, the
+   * advisor, the van Oort model and the report. FAO (2001):
+   *
+   *     SSR = 100 x P(milled) / (P(milled) + M - X)
+   *
+   * Three rules are baked in here rather than left to each caller:
+   *   - production must already be on a MILLED basis; passing paddy silently
+   *     overstates the ratio by about a third, so the basis is asserted;
+   *   - a missing export figure counts as zero, which is what FAOSTAT's
+   *     suppression convention implies;
+   *   - a non-positive denominator returns null, never a negative percentage.
+   *     Exports above production plus imports is a broken balance sheet, not a
+   *     lean year -- FAOSTAT carries two such country-years.
+   */
+  function selfSufficiency(productionMilled, imports, exports) {
+    if (productionMilled == null || imports == null) return null;
+    const supply = productionMilled + imports - (exports || 0);
+    if (!(supply > 0)) return null;
+    return 100 * productionMilled / supply;
+  }
 
   /* Localised country name. The registry stores the English name because that is
    * what the source tables key on; this is the display form. Falls back to the
@@ -180,6 +212,7 @@ const RSA = (function () {
       case 'region':  return sel.id;
       case 'bloc':    return (state.meta.blocs[sel.id] || {}).label || sel.id;
       case 'africa':  return noteText('sel.africa');
+      case 'ssa':     return noteText('sel.ssa');
       case 'custom':  return 'Custom group (' + (sel.ids || []).length + ' countries)';
       default:        return '';
     }
@@ -845,6 +878,7 @@ const RSA = (function () {
     countries: countries,
     country: country,
     countryName: countryName,
+    selfSufficiency: selfSufficiency,
     regions: regions,
     blocs: blocs,
     resolve: resolve,

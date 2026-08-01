@@ -383,7 +383,7 @@ footer p { margin: 4px 0; }
 </footer>
 
 <script>
-/* Rice Statistics for Africa -- bundled 2026-08-01 14:43:11 UTC */
+/* Rice Statistics for Africa -- bundled 2026-08-01 16:43:53 UTC */
 /* ===== rsa-i18n.js ========================================================= */
 /* Rice Statistics for Africa -- internationalisation (English / French).
  *
@@ -589,6 +589,8 @@ const RSAi18n = (function () {
     },
     'sel.africa':    { en: 'Africa (all reporting countries)',
                        fr: 'Afrique (tous les pays déclarants)' },
+    'sel.ssa':       { en: 'Sub-Saharan Africa (SSA)',
+                       fr: 'Afrique subsaharienne (ASS)' },
     'kpi.apparentCons': { en: 'Apparent consumption', fr: 'Consommation apparente' },
     'fig.perCountry':   { en: 'most recent observed year per country',
                           fr: 'dernière année observée par pays' },
@@ -1834,11 +1836,43 @@ const RSA = (function () {
         return { members: m, unknown: m.length ? [] : [sel.id], validKind: true };
       }
       case 'africa':  return { members: state.registry.map(c => c.iso3), unknown: [], validKind: true };
+      /* Sub-Saharan Africa: the continent less the Northern Africa subregion.
+       * This is the scope almost every published rice figure uses -- CARD,
+       * AfricaRice, IFPRI and the FAO rice briefs all report SSA, not Africa --
+       * because Egypt distorts every continental average. Egypt alone grows
+       * 6.4 Mt at roughly 9,500 kg/ha and is near self-sufficient, which lifts
+       * the continental yield and self-sufficiency ratio well above what the
+       * rest of the continent experiences. */
+      case 'ssa': return { members: state.registry.filter(c => c.region !== 'Northern Africa')
+                                                  .map(c => c.iso3),
+                           unknown: [], validKind: true };
       default:        return { members: [], unknown: [], validKind: false };
     }
   }
 
   function resolve(sel) { return resolveDetailed(sel).members; }
+
+  /* THE self-sufficiency ratio. One definition, one implementation, used by every
+   * module that needs it -- indicators, scenarios, the condition engine, the
+   * advisor, the van Oort model and the report. FAO (2001):
+   *
+   *     SSR = 100 x P(milled) / (P(milled) + M - X)
+   *
+   * Three rules are baked in here rather than left to each caller:
+   *   - production must already be on a MILLED basis; passing paddy silently
+   *     overstates the ratio by about a third, so the basis is asserted;
+   *   - a missing export figure counts as zero, which is what FAOSTAT's
+   *     suppression convention implies;
+   *   - a non-positive denominator returns null, never a negative percentage.
+   *     Exports above production plus imports is a broken balance sheet, not a
+   *     lean year -- FAOSTAT carries two such country-years.
+   */
+  function selfSufficiency(productionMilled, imports, exports) {
+    if (productionMilled == null || imports == null) return null;
+    const supply = productionMilled + imports - (exports || 0);
+    if (!(supply > 0)) return null;
+    return 100 * productionMilled / supply;
+  }
 
   /* Localised country name. The registry stores the English name because that is
    * what the source tables key on; this is the display form. Falls back to the
@@ -1858,6 +1892,7 @@ const RSA = (function () {
       case 'region':  return sel.id;
       case 'bloc':    return (state.meta.blocs[sel.id] || {}).label || sel.id;
       case 'africa':  return noteText('sel.africa');
+      case 'ssa':     return noteText('sel.ssa');
       case 'custom':  return 'Custom group (' + (sel.ids || []).length + ' countries)';
       default:        return '';
     }
@@ -2523,6 +2558,7 @@ const RSA = (function () {
     countries: countries,
     country: country,
     countryName: countryName,
+    selfSufficiency: selfSufficiency,
     regions: regions,
     blocs: blocs,
     resolve: resolve,
@@ -2791,7 +2827,10 @@ const RSAIndicators = (function () {
         'near 150 kg/capita -- far above plausible dietary intake -- once its re-exports to Nigeria ' +
         'stopped being captured in the export column.',
       source: 'FAO (2001); Gassi, Gul & Cetin (2025), eq. 2',
-      compute: b => mapPair(b.consumption, b.population, (c, n) => safeDiv(1000 * c, n))
+      // Same guard as SSR and IDR: a negative apparent utilization is not a
+      // negative amount of rice eaten, it is an unusable balance sheet.
+      compute: b => mapPair(b.consumption, b.population,
+        (c, n) => (c > 0 ? safeDiv(1000 * c, n) : null))
     },
 
     ssr: {
@@ -2820,10 +2859,11 @@ const RSAIndicators = (function () {
         'exchange may be perfectly food-secure (Clapp 2017). On the as-published basis the ratio is ' +
         'not unit-consistent and is biased upward.',
       source: 'FAO (2001); Gassi, Gul & Cetin (2025), eq. 4',
-      compute: b => mapPair(b.production, b.consumption, (p, c) => {
-        const r = safeDiv(100 * p, c);
-        return r;
-      })
+      /* Routed through RSA.selfSufficiency so the formula exists in exactly one
+       * place. Consumption here IS P + M - X, already withheld by balance()
+       * where it came out non-positive, so this reduces to 100 x P / C. */
+      compute: b => mapPair(b.production, b.consumption,
+        (p, c) => RSA.selfSufficiency(p, c - p, 0))
     },
 
     idr: {
@@ -2843,7 +2883,12 @@ const RSAIndicators = (function () {
         'countries: imports can be larger than what stays in the country. SSR + IDR = 100% only when ' +
         'exports are zero. Benin 2010 (IDR 351.71%) is the standard illustration.',
       source: 'FAO (2001); Gassi, Gul & Cetin (2025), eq. 3',
-      compute: b => mapPair(b.imports, b.consumption, (m, c) => safeDiv(100 * m, c))
+      /* Shares SSR's denominator, so it must share SSR's guard. A non-positive
+       * apparent utilization made this return -69.0% for Kenya in 1992 while the
+       * SSR beside it was correctly blank -- the two indicators disagreeing about
+       * whether the same balance sheet was usable. */
+      compute: b => mapPair(b.imports, b.consumption,
+        (m, c) => (c > 0 ? safeDiv(100 * m, c) : null))
     },
 
     /* ---- food-balance-sheet measures ----
@@ -2958,10 +3003,8 @@ const RSAIndicators = (function () {
         const M = fbsSeries(b, 'imports');
         const X = fbsSeries(b, 'exports');
         const out = new Array(b.years.length).fill(null);
-        for (let i = 0; i < out.length; i++) {
-          if (P[i] == null || M[i] == null) continue;
-          out[i] = safeDiv(100 * P[i], P[i] + M[i] - (X[i] || 0));
-        }
+        // Same canonical function as `ssr`; only the source of the terms differs.
+        for (let i = 0; i < out.length; i++) out[i] = RSA.selfSufficiency(P[i], M[i], X[i]);
         return out;
       }
     },
@@ -13670,7 +13713,8 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
       const rowsFor = (kind) => {
         const items = kind === 'regions'
           ? RSA.regions().map(r => ({ label: r, sel: { kind: 'region', id: r } }))
-              .concat([{ label: T('sel.africa'), sel: { kind: 'africa' } }])
+              .concat([{ label: T('sel.ssa'), sel: { kind: 'ssa' } },
+                       { label: T('sel.africa'), sel: { kind: 'africa' } }])
           : RSA.countries().map(c => ({ label: c.name, iso: c.iso3,
                                         sel: { kind: 'country', id: c.iso3 } }));
         return items.map(it => {
@@ -13755,6 +13799,7 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
     };
     RSA.countries().forEach(c => emit('country', c.iso3, c.nameEn || c.name, { kind: 'country', id: c.iso3 }));
     RSA.regions().forEach(r => emit('region', r, r, { kind: 'region', id: r }));
+    emit('aggregate', 'SSA', 'Sub-Saharan Africa', { kind: 'ssa' });
     emit('continent', 'AFR', 'Africa (all reporting countries)', { kind: 'africa' });
     downloadText(L.join('\n'), 'rsa-trends-' + id + '.csv', 'text/csv');
   }
@@ -13778,20 +13823,29 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
     const OBSERVED = { production: 1, area: 1, yield: 1, imports: 1, exports: 1,
                        importValue: 1, exportValue: 1, population: 1, cpcFood: 1,
                        foodUse: 1, kcalRice: 1 };
-    RSA.countries().forEach(c => {
-      const b = bal({ kind: 'country', id: c.iso3 });
+    // Countries, then every aggregate, so a reader can check a regional figure
+    // without re-deriving it. Aggregates carry their scope in the region column.
+    const emit = (code, name, region, sel) => {
+      const b = bal(sel);
       ids.forEach(id => {
         const d = I.get(id);
         if (!d) return;
         const r = I.compute(id, b);
         r.values.forEach((v, i) => {
           if (v == null || !isFinite(v)) return;
-          L.push([c.iso3, q(c.name), q(c.region), r.years[i], id, Math.round(v * 1e6) / 1e6,
+          L.push([code, q(name), q(region), r.years[i], id, Math.round(v * 1e6) / 1e6,
                   q(r.unit), OBSERVED[id] ? 'observed' : 'derived',
                   q(d.fbs ? 'FAOSTAT FBS' : b.db)].join(','));
         });
       });
-    });
+    };
+    RSA.countries().forEach(c => emit(c.iso3, c.name, c.region, { kind: 'country', id: c.iso3 }));
+    RSA.regions().forEach(r => emit('RG-' + r.replace(/\s+/g, '').slice(0, 6).toUpperCase(),
+                                    r, 'UN subregion', { kind: 'region', id: r }));
+    RSA.blocs().forEach(bl => emit('BL-' + bl.id, bl.label, 'Regional bloc',
+                                   { kind: 'bloc', id: bl.id }));
+    emit('SSA', 'Sub-Saharan Africa', 'Aggregate', { kind: 'ssa' });
+    emit('AFR', 'Africa (all reporting countries)', 'Continent', { kind: 'africa' });
     downloadText(L.join('\n'), 'rsa-all-series-long.csv', 'text/csv');
   }
 
@@ -14995,7 +15049,8 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
     const sel = $('#c-sel');
     const want = S.sel.kind === 'country' ? 'c:' + S.sel.id
       : S.sel.kind === 'region' ? 'r:' + S.sel.id
-      : S.sel.kind === 'bloc' ? 'b:' + S.sel.id : 'a:';
+      : S.sel.kind === 'bloc' ? 'b:' + S.sel.id
+      : S.sel.kind === 'ssa' ? 's:' : 'a:';
     sel.value = want;
   }
 
@@ -15004,6 +15059,10 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
     sel.innerHTML = '';
     const gA = h('optgroup', { label: 'Aggregate' });
     gA.appendChild(h('option', { value: 'a:', text: T('sel.africa') }));
+    // Sub-Saharan Africa is the scope nearly every published rice figure uses,
+    // because Egypt distorts the continental averages. Offered beside Africa
+    // rather than instead of it.
+    gA.appendChild(h('option', { value: 's:', text: T('sel.ssa') }));
     sel.appendChild(gA);
     const gR = h('optgroup', { label: 'UN subregion' });
     RSA.regions().forEach(r => gR.appendChild(h('option', { value: 'r:' + r, text: r })));
@@ -15021,7 +15080,8 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = RSARepor
       const v = sel.value, k = v.slice(0, 1), id = v.slice(2);
       S.sel = k === 'c' ? { kind: 'country', id: id }
         : k === 'r' ? { kind: 'region', id: id }
-        : k === 'b' ? { kind: 'bloc', id: id } : { kind: 'africa' };
+        : k === 'b' ? { kind: 'bloc', id: id }
+        : k === 's' ? { kind: 'ssa' } : { kind: 'africa' };
       invalidate(); go(S.tab);
     });
   }

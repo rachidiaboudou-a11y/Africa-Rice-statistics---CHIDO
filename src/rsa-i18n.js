@@ -206,6 +206,23 @@ const RSAi18n = (function () {
     'fig.perCountry':   { en: 'most recent observed year per country',
                           fr: 'dernière année observée par pays' },
     'fig.tileMap':      { en: 'schematic tile map', fr: 'carte schématique en tuiles' },
+    'data.trendTitle': { en: 'Variable trends by source — reproducibility table',
+                          fr: 'Tendances des variables par source — table de reproductibilité' },
+    'data.trendLede': {
+      en: 'Every variable, every country and region, both databases, across the whole observed record. Pick a variable and read the value straight off: this is what makes a published figure checkable against this platform.',
+      fr: 'Chaque variable, chaque pays et région, les deux bases de données, sur l’ensemble de la période observée. Choisissez une variable et lisez la valeur directement : c’est ce qui permet de vérifier un chiffre publié par rapport à cette plateforme.'
+    },
+    'data.trendBasis': { en: 'basis: {0}', fr: 'base : {0}' },
+    'data.trendNote': {
+      en: 'The observed record is 1961–2024: FAOSTAT begins in 1961 and the most recent observation is 2024, so there are no 1960, 2025 or 2026 observations to show — those years exist only as forecasts, in the Forecast panel. FAOSTAT production is PADDY and USDA PSD is MILLED; the two blocks are shown side by side precisely so that difference stays visible rather than being averaged away. Download the CSV for annual resolution.',
+      fr: 'La période observée est 1961–2024 : FAOSTAT commence en 1961 et la dernière observation est 2024 ; il n’existe donc aucune observation pour 1960, 2025 ou 2026 — ces années n’existent que sous forme de prévisions, dans l’onglet Prévision. La production FAOSTAT est en PADDY et l’USDA PSD en USINÉ ; les deux blocs sont présentés côte à côte précisément pour que cette différence reste visible. Téléchargez le CSV pour la résolution annuelle.'
+    },
+    'data.variable':  { en: 'Variable', fr: 'Variable' },
+    'data.scope':     { en: 'Scope',    fr: 'Portée' },
+    'data.scopeCountries': { en: 'Countries', fr: 'Pays' },
+    'data.scopeRegions':   { en: 'Regions and continent', fr: 'Régions et continent' },
+    'data.dlTrend':   { en: 'Download this variable, all years (CSV)',
+                        fr: 'Télécharger cette variable, toutes années (CSV)' },
     'tbl.rank':      { en: 'Rank',    fr: 'Rang' },
     'tbl.country':   { en: 'Country', fr: 'Pays' },
     'tbl.year':      { en: 'Year',    fr: 'Année' },

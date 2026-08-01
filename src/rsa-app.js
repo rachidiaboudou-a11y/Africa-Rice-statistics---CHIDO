@@ -2444,6 +2444,8 @@
     const el = $('#p-datused');
     el.innerHTML = '';
     const cov = RSADataDict.coverage();
+    if (S.trendVar == null) S.trendVar = 'production';
+    if (S.trendScope == null) S.trendScope = 'countries';
 
     el.appendChild(h('div', { class: 'section-h' }, [
       h('h2', { text: T('data.title') }),
@@ -2461,6 +2463,8 @@
         RSADataDict.toJson(), 'rsa-data-used.json', 'application/json') }),
       h('button', { text: T('data.dlAll'), onclick: downloadAllSeries })
     ]));
+
+    el.appendChild(trendsMatrixCard());
 
     // One card per source.
     RSADataDict.SOURCES.forEach(s => {
@@ -2533,6 +2537,126 @@
         r.role ? h('div', { class: 'muted', text: r.role }) : null
       ].filter(Boolean))))
     ]));
+  }
+
+  /* ---------------------------------------------- variable trends by source
+   *
+   * The reproducibility table: one variable, every country and region, both
+   * databases, across the whole record. This is what makes a published figure
+   * checkable against this platform without downloading anything -- pick the
+   * variable, find the country, read the year.
+   *
+   * Two things are stated rather than glossed. The record is 1961-2024, not
+   * 1960-2026: FAOSTAT begins in 1961 and the last observed year is 2024, so
+   * columns outside that are absent rather than filled. And FAOSTAT production
+   * is PADDY while USDA is MILLED, so the two columns are not the same
+   * measurement -- shown side by side precisely so the gap is visible.
+   */
+  const TREND_DECADES = [1961, 1970, 1980, 1990, 2000, 2010, 2020];
+
+  function trendsMatrixCard() {
+    const I = RSAIndicators;
+    const VARS = ['production', 'area', 'yield', 'imports', 'exports', 'consumption',
+                  'population', 'ppc', 'cpc', 'ssr', 'idr', 'cpcFood', 'ssrFbs'];
+    const host = h('div', {});
+
+    const paint = () => {
+      host.innerHTML = '';
+      const id = S.trendVar;
+      const d = I.get(id);
+      const years = TREND_DECADES.concat([RSA.state.fao.years[RSA.state.fao.years.length - 1]])
+        .filter((y, i, a) => a.indexOf(y) === i);
+
+      const rowsFor = (kind) => {
+        const items = kind === 'regions'
+          ? RSA.regions().map(r => ({ label: r, sel: { kind: 'region', id: r } }))
+              .concat([{ label: T('sel.africa'), sel: { kind: 'africa' } }])
+          : RSA.countries().map(c => ({ label: c.name, iso: c.iso3,
+                                        sel: { kind: 'country', id: c.iso3 } }));
+        return items.map(it => {
+          const cells = [it.label + (it.iso ? ' (' + it.iso + ')' : '')];
+          ['fao', 'usda'].forEach(db => {
+            let r = null;
+            try {
+              r = I.compute(id, RSA.balance(db, it.sel, { basis: S.basis || 'milled',
+                                                          standardizedTrade: S.stdTrade !== false }));
+            } catch (e) { r = null; }
+            years.forEach(y => {
+              if (!r) { cells.push('—'); return; }
+              const i = r.years.indexOf(y);
+              const v = i < 0 ? null : r.values[i];
+              cells.push(v == null ? '—' : f(v, (d && d.unit === '%') ? 1 : 0));
+            });
+          });
+          return cells;
+        });
+      };
+
+      const head = [T('tbl.country')]
+        .concat(years.map(y => 'FAO ' + y))
+        .concat(years.map(y => 'USDA ' + y));
+
+      host.appendChild(h('p', { class: 'muted', text:
+        (d ? d.label + ' — ' + (d.unitLabel || d.unit) : id) +
+        ' · ' + T('data.trendBasis').replace('{0}', S.basis || 'milled') }));
+      host.appendChild(h('div', { class: 'scroll-y' },
+        [table(null, head, rowsFor(S.trendScope), { sticky: true })]));
+      host.appendChild(h('p', { class: 'muted small', text: T('data.trendNote') }));
+    };
+
+    const varSel = h('select', { id: 'c-trendvar', onchange: e => { S.trendVar = e.target.value; paint(); } },
+      VARS.map(v => h('option', { value: v, text: I.label(v), selected: v === S.trendVar })));
+    const scopeSel = h('select', { id: 'c-trendscope', onchange: e => { S.trendScope = e.target.value; paint(); } },
+      [h('option', { value: 'countries', text: T('data.scopeCountries'),
+                     selected: S.trendScope === 'countries' }),
+       h('option', { value: 'regions', text: T('data.scopeRegions'),
+                     selected: S.trendScope === 'regions' })]);
+
+    const controls = h('div', { class: 'controls' }, [
+      h('label', { for: 'c-trendvar', text: T('data.variable') }), varSel,
+      h('label', { for: 'c-trendscope', text: T('data.scope') }), scopeSel,
+      h('button', { text: T('data.dlTrend'), onclick: () => downloadTrendMatrix() })
+    ]);
+
+    paint();
+    return card(T('data.trendTitle'), [h('p', { text: T('data.trendLede') }), controls, host]);
+  }
+
+  /* The same matrix as a CSV, at annual resolution rather than by decade, so a
+   * reader can check any year rather than only the ones the table has room for. */
+  function downloadTrendMatrix() {
+    const I = RSAIndicators;
+    const id = S.trendVar;
+    const d = I.get(id);
+    const q = s => { s = String(s == null ? '' : s); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const yrs = RSA.state.fao.years;
+    const L = ['# Rice Statistics for Africa v' + RSA_VERSION + ' — trends by source',
+               '# variable,' + q(id) + ',' + q(d ? d.labelEn || d.label : id) + ',unit,' + q(d ? d.unit : ''),
+               '# basis,' + q(S.basis || 'milled') + ',trade_item,' + (S.stdTrade !== false ? 30 : 31),
+               '# observed record,' + yrs[0] + '-' + yrs[yrs.length - 1],
+               '# NOTE,FAOSTAT production is PADDY; USDA PSD is MILLED. The columns are not the same measurement.',
+               '# data extracted,' + RSA.state.meta.extracted,
+               '', 'scope,code,name,source,' + yrs.join(',')];
+    const emit = (scope, code, name, sel) => {
+      ['fao', 'usda'].forEach(db => {
+        let r = null;
+        try { r = I.compute(id, RSA.balance(db, sel, { basis: S.basis || 'milled',
+                                                       standardizedTrade: S.stdTrade !== false })); }
+        catch (e) { return; }
+        if (!r) return;
+        const vals = yrs.map(y => {
+          const i = r.years.indexOf(y);
+          const v = i < 0 ? null : r.values[i];
+          return v == null ? '' : Math.round(v * 1e6) / 1e6;
+        });
+        if (vals.every(v => v === '')) return;
+        L.push([scope, code, q(name), db === 'fao' ? 'FAOSTAT' : 'USDA PSD'].concat(vals).join(','));
+      });
+    };
+    RSA.countries().forEach(c => emit('country', c.iso3, c.nameEn || c.name, { kind: 'country', id: c.iso3 }));
+    RSA.regions().forEach(r => emit('region', r, r, { kind: 'region', id: r }));
+    emit('continent', 'AFR', 'Africa (all reporting countries)', { kind: 'africa' });
+    downloadText(L.join('\n'), 'rsa-trends-' + id + '.csv', 'text/csv');
   }
 
   /* Bundles every observed series for every country into one CSV. This is the
